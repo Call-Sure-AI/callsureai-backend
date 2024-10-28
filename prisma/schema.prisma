@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,57 +11,44 @@ datasource db {
 }
 
 model BusinessAccount {
-  id        String   @id @default(uuid()) @unique
-  type      String   @map("BusinessType")
-  desc      String   @map("BusinessDesc")
-  report    String   @map("BusinessReport")
-  bus_cus   Bus_Cus[]
+  id          String     @id @default(uuid())
+  type        String     @map("BusinessType")
+  desc        String     @map("BusinessDesc")
+  report      String     @map("BusinessReport")
+  customers   Customer[] @relation("BusinessCustomer")
 }
 
 model Customer {
-  id          String   @id @default(uuid()) @map("CustomerID")
-  name        String   @map("CustomerName")
-  description String   @map("CustomerDescript")
-  bus_cus     Bus_Cus[]
-  cust_agent  Cust_Agent[]
+  id          String            @id @default(uuid()) @map("CustomerID")
+  name        String            @map("CustomerName")
+  description String            @map("CustomerDescript")
+  businesses  BusinessAccount[] @relation("BusinessCustomer")
+  agents      Agent[]          @relation("CustomerAgent")
+  conversations Conversation[]
 }
 
-model Bus_Cus {
-  id        String   @id @default(uuid())
-  busID     String
-  cusID     String
-  business  BusinessAccount @relation(fields: [busID], references: [id])
-  customer  Customer        @relation(fields: [cusID], references: [id])
-}
-
-model AgentInfo {
-  id          String   @id @default(uuid()) @map("AgentID")
-  name        String   @map("AgentName")
-  spec        String   @map("AgentSpec")
-  description String   @map("AgentDescription")
-  generate    Boolean  @default(false) @map("Generate")
-  agents      Cust_Agent[]
-}
-
-model Cust_Agent {
-  id         String   @id @default(uuid()) @map("ConnID")
-  customerID String
-  agentID    String
-  customer   Customer  @relation(fields: [customerID], references: [id])
-  agent      AgentInfo @relation(fields: [agentID], references: [id])
+model Agent {
+  id          String     @id @default(uuid()) @map("AgentID")
+  name        String     @map("AgentName")
+  spec        String     @map("AgentSpec")
+  description String     @map("AgentDescription")
+  generate    Boolean    @default(false) @map("Generate")
+  customers   Customer[] @relation("CustomerAgent")
   conversations Conversation[]
 }
 
 model Conversation {
-    id          String    @id @default(uuid())
-    timeDate    DateTime
-    duration    Int
-    exchange    String
-    transcript  String?
-    file        String?
-    custAgentId String
-    custAgent   Cust_Agent @relation(fields: [custAgentId], references: [id])
-    version     Int       @default(0)
-    
-    @@map("conversations")
+  id          String    @id @default(uuid())
+  timeDate    DateTime
+  duration    Int
+  exchange    String
+  transcript  String?
+  file        String?
+  version     Int       @default(0)
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  customerId  String
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  agentId     String
+
+  @@map("conversations")
 }

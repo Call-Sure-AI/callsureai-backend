@@ -37,7 +37,6 @@ describe('API Integration Tests', () => {
                 .post('/api/businesses')
                 .send({
                     type: "Enterprise"
-                    // Missing desc and report
                 });
 
             expect(response.status).toBe(400);
