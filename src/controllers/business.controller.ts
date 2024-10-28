@@ -39,11 +39,7 @@ export class BusinessController {
                 skip,
                 take: limit,
                 include: {
-                    bus_cus: {
-                        include: {
-                            customer: true,
-                        },
-                    },
+                    customers: true
                 },
                 orderBy: {
                     id: 'asc',
@@ -75,11 +71,7 @@ export class BusinessController {
             const business = await prisma.businessAccount.findUnique({
                 where: { id },
                 include: {
-                    bus_cus: {
-                        include: {
-                            customer: true,
-                        },
-                    },
+                    customers: true,
                 },
             });
 
@@ -128,12 +120,9 @@ export class BusinessController {
     async getMetrics(req: Request, res: Response, next: NextFunction) {
         try {
             const { id: businessId } = req.params;
-
             const timeframe = (req.query.timeframe as string) || '30d';
-
             const prisma = await PrismaService.getInstance();
 
-            // Verify business exists
             const business = await prisma.businessAccount.findUnique({
                 where: { id: businessId }
             });
@@ -142,7 +131,6 @@ export class BusinessController {
                 throw new AppError('Business not found', 404);
             }
 
-            // Calculate date range
             const now = new Date();
             const startDate = new Date();
             switch (timeframe) {
@@ -154,21 +142,23 @@ export class BusinessController {
                     throw new AppError('Invalid timeframe. Supported values: 7d, 30d, 90d, 1y', 400);
             }
 
-            // Get all customers associated with this business
-            const businessCustomers = await prisma.bus_Cus.findMany({
-                where: { busID: businessId },
+            const businessData = await prisma.businessAccount.findUnique({
+                where: { id: businessId },
                 include: {
-                    customer: {
+                    customers: {
                         include: {
-                            cust_agent: {
+                            conversations: {
+                                where: {
+                                    timeDate: {
+                                        gte: startDate,
+                                        lte: now
+                                    }
+                                },
                                 include: {
-                                    agent: true,
-                                    conversations: {
-                                        where: {
-                                            timeDate: {
-                                                gte: startDate,
-                                                lte: now
-                                            }
+                                    agent: {
+                                        select: {
+                                            id: true,
+                                            name: true
                                         }
                                     }
                                 }
@@ -176,74 +166,55 @@ export class BusinessController {
                         }
                     }
                 }
-            }).catch(error => {
-                throw new AppError('Error fetching business data: ' + error.message, 500);
             });
 
-            if (!businessCustomers) {
-                throw new AppError('Error retrieving business customers', 500);
+            if (!businessData) {
+                throw new AppError('Error retrieving business data', 500);
             }
 
-            // Customer Metrics
-            const totalCustomers = businessCustomers.length;
+            const totalCustomers = businessData.customers.length;
 
-            // Conversation Metrics
             let totalConversations = 0;
             let totalDuration = 0;
-            let customersWithConversations = 0;
-            const agentConversations = new Map();
-            const dailyConversations = new Map();
+            const agentMetrics = new Map<string, {
+                name: string;
+                conversationCount: number;
+                totalDuration: number;
+            }>();
+            const dailyConversations = new Map<string, number>();
+            const customersWithConversations = new Set();
 
-            businessCustomers.forEach(busCus => {
-                let hasConversation = false;
-                busCus.customer.cust_agent.forEach(custAgent => {
-                    const conversationsCount = custAgent.conversations.length;
-                    if (conversationsCount > 0) {
-                        hasConversation = true;
-                        totalConversations += conversationsCount;
+            businessData.customers.forEach(customer => {
+                if (customer.conversations.length > 0) {
+                    customersWithConversations.add(customer.id);
 
-                        // Track conversations per agent
-                        const currentCount = agentConversations.get(custAgent.agent.id) || {
-                            agentName: custAgent.agent.name,
-                            count: 0,
+                    customer.conversations.forEach(conv => {
+                        totalConversations++;
+                        totalDuration += conv.duration;
+
+                        const agentData = agentMetrics.get(conv.agent.id) || {
+                            name: conv.agent.name,
+                            conversationCount: 0,
                             totalDuration: 0
                         };
+                        agentData.conversationCount++;
+                        agentData.totalDuration += conv.duration;
+                        agentMetrics.set(conv.agent.id, agentData);
 
-                        custAgent.conversations.forEach(conv => {
-                            totalDuration += conv.duration;
-                            currentCount.count += 1;
-                            currentCount.totalDuration += conv.duration;
-
-                            // Track daily conversations
-                            const dateKey = conv.timeDate.toISOString().split('T')[0];
-                            const dailyCount = dailyConversations.get(dateKey) || 0;
-                            dailyConversations.set(dateKey, dailyCount + 1);
-                        });
-
-                        agentConversations.set(custAgent.agent.id, currentCount);
-                    }
-                });
-                if (hasConversation) customersWithConversations++;
+                        const dateKey = conv.timeDate.toISOString().split('T')[0];
+                        dailyConversations.set(dateKey, (dailyConversations.get(dateKey) || 0) + 1);
+                    });
+                }
             });
 
-            // Calculate average durations
-            const averageConversationDuration = totalConversations > 0
-                ? Math.round(totalDuration / totalConversations)
-                : 0;
-
-            // Get agent performance metrics
-            const agentPerformance = Array.from(agentConversations.entries()).map(([agentId, data]) => ({
+            const agentPerformance = Array.from(agentMetrics.entries()).map(([agentId, data]) => ({
                 agentId,
-                agentName: data.agentName,
-                conversationCount: data.count,
+                agentName: data.name,
+                conversationCount: data.conversationCount,
                 totalDuration: data.totalDuration,
-                averageDuration: Math.round(data.totalDuration / data.count)
-            }));
+                averageDuration: Math.round(data.totalDuration / data.conversationCount)
+            })).sort((a, b) => b.conversationCount - a.conversationCount);
 
-            // Sort agent performance by conversation count
-            agentPerformance.sort((a, b) => b.conversationCount - a.conversationCount);
-
-            // Get conversation trends
             const conversationTrends = Array.from(dailyConversations.entries())
                 .map(([date, count]) => ({
                     date,
@@ -251,20 +222,24 @@ export class BusinessController {
                 }))
                 .sort((a, b) => a.date.localeCompare(b.date));
 
+            const activeCustomersCount = customersWithConversations.size;
+
             const metrics = {
                 timeframe,
                 customerMetrics: {
                     totalCustomers,
-                    activeCustomers: customersWithConversations,
+                    activeCustomers: activeCustomersCount,
                     engagementRate: totalCustomers > 0
-                        ? Number((customersWithConversations / totalCustomers * 100).toFixed(2))
+                        ? Number((activeCustomersCount / totalCustomers * 100).toFixed(2))
                         : 0
                 },
                 conversationMetrics: {
                     totalConversations,
-                    averageDuration: averageConversationDuration,
-                    conversationsPerCustomer: customersWithConversations > 0
-                        ? Number((totalConversations / customersWithConversations).toFixed(2))
+                    averageDuration: totalConversations > 0
+                        ? Math.round(totalDuration / totalConversations)
+                        : 0,
+                    conversationsPerCustomer: activeCustomersCount > 0
+                        ? Number((totalConversations / activeCustomersCount).toFixed(2))
                         : 0
                 },
                 agentMetrics: {
@@ -281,10 +256,6 @@ export class BusinessController {
                     businessDescription: business.desc
                 }
             };
-
-            if (!metrics || typeof metrics !== 'object') {
-                throw new AppError('Error generating metrics', 500);
-            }
 
             res.json(metrics);
         } catch (error) {

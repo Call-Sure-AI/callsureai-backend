@@ -4,19 +4,32 @@ import { AppError } from '../utils/app-error';
 import { Prisma } from '@prisma/client';
 
 export class ConversationController {
-    async create(req: Request, res: Response, next: NextFunction) {
+    private validateConversationData(data: any): boolean {
+        return (
+            data.customerId &&
+            typeof data.customerId === 'string' &&
+            data.agentId &&
+            typeof data.agentId === 'string' &&
+            data.timeDate &&
+            !isNaN(new Date(data.timeDate).getTime()) &&
+            data.duration &&
+            typeof data.duration === 'number' &&
+            data.duration > 0 &&
+            data.exchange &&
+            typeof data.exchange === 'string' &&
+            data.exchange.trim().length > 0
+        );
+    }
+
+    create = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { custAgentId, timeDate, duration, exchange, transcript, file } = req.body;
+            const { customerId, agentId, timeDate, duration, exchange, transcript, file } = req.body;
+
+            if (!this.validateConversationData({ customerId, agentId, timeDate, duration, exchange })) {
+                throw new AppError('Invalid conversation data', 400);
+            }
 
             const prisma = await PrismaService.getInstance();
-
-            const custAgent = await prisma.cust_Agent.findUnique({
-                where: { id: custAgentId }
-            });
-
-            if (!custAgent) {
-                throw new AppError('Customer-Agent relationship not found', 404);
-            }
 
             const conversation = await prisma.conversation.create({
                 data: {
@@ -25,13 +38,25 @@ export class ConversationController {
                     exchange,
                     transcript,
                     file,
-                    custAgentId
+                    customer: {
+                        connect: { id: customerId }
+                    },
+                    agent: {
+                        connect: { id: agentId }
+                    }
                 },
                 include: {
-                    custAgent: {
-                        include: {
-                            customer: true,
-                            agent: true
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    },
+                    agent: {
+                        select: {
+                            id: true,
+                            name: true,
+                            spec: true
                         }
                     }
                 }
@@ -39,15 +64,31 @@ export class ConversationController {
 
             res.status(201).json(conversation);
         } catch (error) {
-            next(error);
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+                next(new AppError('Customer or Agent not found', 404));
+            } else {
+                next(error);
+            }
         }
     }
 
-    async getAll(req: Request, res: Response, next: NextFunction) {
+    getAll = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { customerId, agentId, startDate, endDate } = req.query;
+            const {
+                customerId,
+                agentId,
+                startDate,
+                endDate,
+                page = '1',
+                limit = '10',
+                sortBy = 'timeDate',
+                sortOrder = 'desc'
+            } = req.query;
 
-            let whereClause: any = {};
+            const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+            const take = parseInt(limit as string);
+
+            let whereClause: Prisma.ConversationWhereInput = {};
 
             if (startDate && endDate) {
                 whereClause.timeDate = {
@@ -56,54 +97,67 @@ export class ConversationController {
                 };
             }
 
-            if (customerId || agentId) {
-                whereClause.custAgent = {};
-                if (customerId) {
-                    whereClause.custAgent.customerID = customerId;
-                }
-                if (agentId) {
-                    whereClause.custAgent.agentID = agentId;
-                }
+            if (customerId) {
+                whereClause.customerId = customerId as string;
+            }
+
+            if (agentId) {
+                whereClause.agentId = agentId as string;
             }
 
             const prisma = await PrismaService.getInstance();
 
-            const conversations = await prisma.conversation.findMany({
-                where: whereClause,
-                include: {
-                    custAgent: {
-                        include: {
-                            customer: true,
-                            agent: true
+            const [conversations, total] = await Promise.all([
+                prisma.conversation.findMany({
+                    where: whereClause,
+                    include: {
+                        customer: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        },
+                        agent: {
+                            select: {
+                                id: true,
+                                name: true,
+                                spec: true
+                            }
                         }
-                    }
-                },
-                orderBy: {
-                    timeDate: 'desc'
+                    },
+                    orderBy: {
+                        [sortBy as string]: sortOrder
+                    },
+                    skip,
+                    take
+                }),
+                prisma.conversation.count({ where: whereClause })
+            ]);
+
+            res.json({
+                data: conversations,
+                pagination: {
+                    total,
+                    page: parseInt(page as string),
+                    limit: take,
+                    pages: Math.ceil(total / take)
                 }
             });
-
-            res.json(conversations);
         } catch (error) {
             next(error);
         }
     }
 
-    async getById(req: Request, res: Response, next: NextFunction) {
+    getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-
             const prisma = await PrismaService.getInstance();
 
             const conversation = await prisma.conversation.findUnique({
                 where: { id },
                 include: {
-                    custAgent: {
-                        include: {
-                            customer: true,
-                            agent: true
-                        }
-                    }
+                    customer: true,
+                    agent: true
                 }
             });
 
@@ -117,7 +171,7 @@ export class ConversationController {
         }
     }
 
-    async update(req: Request, res: Response, next: NextFunction) {
+    update = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
             const { timeDate, duration, exchange, transcript, file } = req.body;
@@ -154,10 +208,17 @@ export class ConversationController {
                                 version: { increment: 1 }
                             },
                             include: {
-                                custAgent: {
-                                    include: {
-                                        customer: true,
-                                        agent: true
+                                customer: {
+                                    select: {
+                                        id: true,
+                                        name: true
+                                    }
+                                },
+                                agent: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        spec: true
                                     }
                                 }
                             }
@@ -186,76 +247,122 @@ export class ConversationController {
         }
     }
 
-    async delete(req: Request, res: Response, next: NextFunction) {
+    delete = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-
             const prisma = await PrismaService.getInstance();
+
+            const conversation = await prisma.conversation.findUnique({
+                where: { id },
+                select: { id: true }
+            });
+
+            if (!conversation) {
+                throw new AppError('Conversation not found', 404);
+            }
 
             await prisma.conversation.delete({
                 where: { id }
             });
+
             res.status(204).send();
         } catch (error) {
             next(error);
         }
     }
 
-    async getConversationsByCustomer(req: Request, res: Response, next: NextFunction) {
+    getByCustomerId = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { customerId } = req.params;
+            const { page = '1', limit = '10' } = req.query;
+
+            const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+            const take = parseInt(limit as string);
 
             const prisma = await PrismaService.getInstance();
 
-            const conversations = await prisma.conversation.findMany({
-                where: {
-                    custAgent: {
-                        customerID: customerId
-                    }
-                },
-                include: {
-                    custAgent: {
-                        include: {
-                            agent: true
+            const [conversations, total] = await Promise.all([
+                prisma.conversation.findMany({
+                    where: {
+                        customerId
+                    },
+                    include: {
+                        agent: {
+                            select: {
+                                id: true,
+                                name: true,
+                                spec: true
+                            }
                         }
-                    }
-                },
-                orderBy: {
-                    timeDate: 'desc'
+                    },
+                    orderBy: {
+                        timeDate: 'desc'
+                    },
+                    skip,
+                    take
+                }),
+                prisma.conversation.count({
+                    where: { customerId }
+                })
+            ]);
+
+            res.json({
+                data: conversations,
+                pagination: {
+                    total,
+                    page: parseInt(page as string),
+                    limit: take,
+                    pages: Math.ceil(total / take)
                 }
             });
-
-            res.json(conversations);
         } catch (error) {
             next(error);
         }
     }
 
-    async getConversationsByAgent(req: Request, res: Response, next: NextFunction) {
+    getByAgentId = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { agentId } = req.params;
+            const { page = '1', limit = '10' } = req.query;
+
+            const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+            const take = parseInt(limit as string);
 
             const prisma = await PrismaService.getInstance();
 
-            const conversations = await prisma.conversation.findMany({
-                where: {
-                    custAgent: {
-                        agentID: agentId
-                    }
-                },
-                include: {
-                    custAgent: {
-                        include: {
-                            customer: true
+            const [conversations, total] = await Promise.all([
+                prisma.conversation.findMany({
+                    where: {
+                        agentId
+                    },
+                    include: {
+                        customer: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
                         }
-                    }
-                },
-                orderBy: {
-                    timeDate: 'desc'
+                    },
+                    orderBy: {
+                        timeDate: 'desc'
+                    },
+                    skip,
+                    take
+                }),
+                prisma.conversation.count({
+                    where: { agentId }
+                })
+            ]);
+
+            res.json({
+                data: conversations,
+                pagination: {
+                    total,
+                    page: parseInt(page as string),
+                    limit: take,
+                    pages: Math.ceil(total / take)
                 }
             });
-
-            res.json(conversations);
         } catch (error) {
             next(error);
         }

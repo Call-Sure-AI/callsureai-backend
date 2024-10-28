@@ -1,127 +1,211 @@
 import { Request, Response, NextFunction } from 'express';
-
 import { PrismaService } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
 
-
 export class AgentController {
-    async create(req: Request, res: Response, next: NextFunction) {
+    private validateAgentData(data: any): boolean {
+        return (
+            data.name &&
+            typeof data.name === 'string' &&
+            data.name.trim().length > 0 &&
+            data.spec &&
+            typeof data.spec === 'string' &&
+            data.spec.trim().length > 0 &&
+            data.description &&
+            typeof data.description === 'string' &&
+            data.description.trim().length > 0
+        );
+    }
+
+    create = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { name, spec, description } = req.body;
 
+            if (!this.validateAgentData({ name, spec, description })) {
+                throw new AppError('Invalid agent data', 400);
+            }
+
             const prisma = await PrismaService.getInstance();
 
-            const agent = await prisma.agentInfo.create({
+            const agent = await prisma.agent.create({
                 data: { name, spec, description },
+                include: {
+                    customers: true,
+                    conversations: true
+                }
             });
+
             res.status(201).json(agent);
         } catch (error) {
             next(error);
         }
     }
 
-    async getAll(req: Request, res: Response, next: NextFunction) {
+    getAll = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const prisma = await PrismaService.getInstance();
+            const { page = '1', limit = '10' } = req.query;
 
-            const agents = await prisma.agentInfo.findMany({
-                include: {
-                    agents: {
-                        include: {
-                            customer: true,
-                            conversations: true,
+            const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+            const take = parseInt(limit as string);
+
+            const [agents, total] = await Promise.all([
+                prisma.agent.findMany({
+                    skip,
+                    take,
+                    include: {
+                        customers: {
+                            select: {
+                                id: true,
+                                name: true,
+                                description: true
+                            }
                         },
+                        conversations: {
+                            select: {
+                                id: true,
+                                timeDate: true,
+                                duration: true,
+                                exchange: true
+                            },
+                            orderBy: {
+                                timeDate: 'desc'
+                            },
+                            take: 5
+                        }
                     },
-                },
+                    orderBy: {
+                        name: 'asc'
+                    }
+                }),
+                prisma.agent.count()
+            ]);
+
+            res.json({
+                data: agents,
+                pagination: {
+                    total,
+                    page: parseInt(page as string),
+                    limit: take,
+                    pages: Math.ceil(total / take)
+                }
             });
-            res.json(agents);
         } catch (error) {
             next(error);
         }
     }
 
-    async getById(req: Request, res: Response, next: NextFunction) {
+    getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-
             const prisma = await PrismaService.getInstance();
 
-            const agent = await prisma.agentInfo.findUnique({
+            const agent = await prisma.agent.findUnique({
                 where: { id },
                 include: {
-                    agents: {
-                        include: {
-                            customer: true,
-                            conversations: true,
-                        },
+                    customers: {
+                        select: {
+                            id: true,
+                            name: true,
+                            description: true
+                        }
                     },
-                },
-            });
-
-            if (!agent) {
-                throw new AppError('Agent not found', 404);
-            }
-
-            res.json(agent);
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    async update(req: Request, res: Response, next: NextFunction) {
-        try {
-            const { id } = req.params;
-            const { name, spec, description } = req.body;
-
-            const prisma = await PrismaService.getInstance();
-
-            const agent = await prisma.agentInfo.update({
-                where: { id },
-                data: { name, spec, description },
-            });
-            res.json(agent);
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    async delete(req: Request, res: Response, next: NextFunction) {
-        try {
-            const { id } = req.params;
-
-            const prisma = await PrismaService.getInstance();
-
-            await prisma.agentInfo.delete({
-                where: { id },
-            });
-            res.status(204).send();
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    async getPerformanceMetrics(req: Request, res: Response, next: NextFunction) {
-        try {
-            const { id } = req.params;
-            const timeframe = (req.query.timeframe as string) || '30d';
-
-            const prisma = await PrismaService.getInstance();
-
-            // Verify agent exists
-            const agent = await prisma.agentInfo.findUnique({
-                where: { id },
-                select: {
-                    id: true,
-                    name: true,
-                    spec: true,
-                    description: true,
-                    generate: true
+                    conversations: {
+                        select: {
+                            id: true,
+                            timeDate: true,
+                            duration: true,
+                            exchange: true,
+                            transcript: true,
+                            file: true,
+                            version: true
+                        },
+                        orderBy: {
+                            timeDate: 'desc'
+                        }
+                    }
                 }
             });
 
             if (!agent) {
                 throw new AppError('Agent not found', 404);
             }
+
+            res.json(agent);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    update = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            const { name, spec, description } = req.body;
+
+            if (!this.validateAgentData({ name, spec, description })) {
+                throw new AppError('Invalid agent data', 400);
+            }
+
+            const prisma = await PrismaService.getInstance();
+
+            const agent = await prisma.agent.update({
+                where: { id },
+                data: { name, spec, description },
+                include: {
+                    customers: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            });
+
+            res.json(agent);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    delete = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            const prisma = await PrismaService.getInstance();
+
+            // Check if agent exists and has no active conversations
+            const agentWithConversations = await prisma.agent.findUnique({
+                where: { id },
+                include: {
+                    _count: {
+                        select: { conversations: true }
+                    }
+                }
+            });
+
+            if (!agentWithConversations) {
+                throw new AppError('Agent not found', 404);
+            }
+
+            if (agentWithConversations._count.conversations > 0) {
+                throw new AppError('Cannot delete agent with existing conversations', 400);
+            }
+
+            await prisma.agent.delete({
+                where: { id }
+            });
+
+            res.status(204).send();
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    getPerformanceMetrics = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            const timeframe = (req.query.timeframe as string) || '30d';
+
+            const prisma = await PrismaService.getInstance();
 
             // Calculate date range
             const now = new Date();
@@ -135,13 +219,10 @@ export class AgentController {
                     throw new AppError('Invalid timeframe. Supported values: 7d, 30d, 90d, 1y', 400);
             }
 
-            // Get all customer-agent connections with conversations
-            const custAgentConnections = await prisma.cust_Agent.findMany({
-                where: {
-                    agentID: id
-                },
+            // Get agent data with conversations in a single query
+            const agentData = await prisma.agent.findUnique({
+                where: { id },
                 include: {
-                    customer: true,
                     conversations: {
                         where: {
                             timeDate: {
@@ -149,140 +230,127 @@ export class AgentController {
                                 lte: now
                             }
                         },
+                        include: {
+                            customer: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
+                        },
                         orderBy: {
                             timeDate: 'asc'
+                        }
+                    },
+                    customers: {
+                        select: {
+                            id: true
+                        }
+                    },
+                    _count: {
+                        select: {
+                            customers: true,
+                            conversations: true
                         }
                     }
                 }
             });
 
-            // Calculate conversation metrics
-            let totalConversations = 0;
-            let totalDuration = 0;
-            let totalCustomers = custAgentConnections.length;
-            let activeCustomers = 0;
-            let conversationsWithTranscript = 0;
-            let conversationsWithFiles = 0;
-            const dailyMetrics = new Map();
-            const customerInteractions = new Map();
+            if (!agentData) {
+                throw new AppError('Agent not found', 404);
+            }
 
-            custAgentConnections.forEach(connection => {
-                const conversations = connection.conversations;
-                if (conversations.length > 0) {
-                    activeCustomers++;
-                }
+            // Process conversations and calculate metrics
+            const conversationStats = agentData.conversations.reduce((stats, conv) => {
+                // Update basic counts
+                stats.totalConversations++;
+                stats.totalDuration += conv.duration;
+                if (conv.transcript) stats.withTranscript++;
+                if (conv.file) stats.withFiles++;
 
-                conversations.forEach(conv => {
-                    totalConversations++;
-                    totalDuration += conv.duration;
+                // Update daily metrics
+                const dateKey = conv.timeDate.toISOString().split('T')[0];
+                const dailyData = stats.dailyMetrics.get(dateKey) || {
+                    count: 0,
+                    duration: 0
+                };
+                dailyData.count++;
+                dailyData.duration += conv.duration;
+                stats.dailyMetrics.set(dateKey, dailyData);
 
-                    // Track transcript and file usage
-                    if (conv.transcript) conversationsWithTranscript++;
-                    if (conv.file) conversationsWithFiles++;
+                // Update customer interactions
+                const customerData = stats.customerInteractions.get(conv.customer.id) || {
+                    name: conv.customer.name,
+                    count: 0,
+                    duration: 0
+                };
+                customerData.count++;
+                customerData.duration += conv.duration;
+                stats.customerInteractions.set(conv.customer.id, customerData);
 
-                    // Track daily metrics
-                    const dateKey = conv.timeDate.toISOString().split('T')[0];
-                    const dailyData = dailyMetrics.get(dateKey) || {
-                        conversationCount: 0,
-                        totalDuration: 0,
-                        avgDuration: 0
-                    };
-                    dailyData.conversationCount++;
-                    dailyData.totalDuration += conv.duration;
-                    dailyData.avgDuration = dailyData.totalDuration / dailyData.conversationCount;
-                    dailyMetrics.set(dateKey, dailyData);
-
-                    // Track customer interaction frequency
-                    const customerData = customerInteractions.get(connection.customerID) || {
-                        customerName: connection.customer.name,
-                        conversationCount: 0,
-                        totalDuration: 0
-                    };
-                    customerData.conversationCount++;
-                    customerData.totalDuration += conv.duration;
-                    customerInteractions.set(connection.customerID, customerData);
-                });
-            });
-
-            // Calculate averages and trends
-            const avgDuration = totalConversations > 0 ? Math.round(totalDuration / totalConversations) : 0;
-            const conversationsPerDay = Array.from(dailyMetrics.entries()).map(([date, metrics]) => ({
-                date,
-                conversations: metrics.conversationCount,
-                avgDuration: Math.round(metrics.avgDuration)
-            }));
-
-            // Get top customers by interaction
-            const topCustomers = Array.from(customerInteractions.entries())
-                .map(([customerId, data]) => ({
-                    customerId,
-                    customerName: data.customerName,
-                    conversationCount: data.conversationCount,
-                    totalDuration: data.totalDuration,
-                    avgDuration: Math.round(data.totalDuration / data.conversationCount)
-                }))
-                .sort((a, b) => b.conversationCount - a.conversationCount)
-                .slice(0, 5);
-
-            // Calculate version statistics
-            const versionStats = await prisma.conversation.groupBy({
-                by: ['version'],
-                where: {
-                    custAgent: {
-                        agentID: id
-                    },
-                    timeDate: {
-                        gte: startDate,
-                        lte: now
-                    }
-                },
-                _count: true
+                return stats;
+            }, {
+                totalConversations: 0,
+                totalDuration: 0,
+                withTranscript: 0,
+                withFiles: 0,
+                dailyMetrics: new Map<string, { count: number; duration: number }>(),
+                customerInteractions: new Map<string, { name: string; count: number; duration: number }>()
             });
 
             const metrics = {
                 timeframe,
                 agentInfo: {
-                    ...agent,
+                    id: agentData.id,
+                    name: agentData.name,
+                    spec: agentData.spec,
+                    description: agentData.description,
+                    generate: agentData.generate
                 },
                 overview: {
-                    totalConversations,
-                    totalCustomers,
-                    activeCustomers,
-                    avgConversationDuration: avgDuration,
-                    conversationsPerCustomer: activeCustomers > 0
-                        ? Number((totalConversations / activeCustomers).toFixed(2))
+                    totalConversations: conversationStats.totalConversations,
+                    totalCustomers: agentData._count.customers,
+                    avgConversationDuration: conversationStats.totalConversations > 0
+                        ? Math.round(conversationStats.totalDuration / conversationStats.totalConversations)
                         : 0,
-                    customerEngagementRate: totalCustomers > 0
-                        ? Number((activeCustomers / totalCustomers * 100).toFixed(2))
+                    conversationsPerCustomer: agentData._count.customers > 0
+                        ? Number((conversationStats.totalConversations / agentData._count.customers).toFixed(2))
                         : 0
                 },
                 conversationQuality: {
                     withTranscript: {
-                        count: conversationsWithTranscript,
-                        percentage: totalConversations > 0
-                            ? Number((conversationsWithTranscript / totalConversations * 100).toFixed(2))
+                        count: conversationStats.withTranscript,
+                        percentage: conversationStats.totalConversations > 0
+                            ? Number((conversationStats.withTranscript / conversationStats.totalConversations * 100).toFixed(2))
                             : 0
                     },
                     withFiles: {
-                        count: conversationsWithFiles,
-                        percentage: totalConversations > 0
-                            ? Number((conversationsWithFiles / totalConversations * 100).toFixed(2))
+                        count: conversationStats.withFiles,
+                        percentage: conversationStats.totalConversations > 0
+                            ? Number((conversationStats.withFiles / conversationStats.totalConversations * 100).toFixed(2))
                             : 0
-                    },
-                    versionDistribution: versionStats.map(stat => ({
-                        version: stat.version,
-                        count: stat._count,
-                        percentage: Number((stat._count / totalConversations * 100).toFixed(2))
-                    }))
+                    }
                 },
                 customerInsights: {
-                    topCustomers,
-                    customerRetention: totalCustomers > 0
-                        ? Number((activeCustomers / totalCustomers * 100).toFixed(2))
-                        : 0
+                    topCustomers: Array.from(conversationStats.customerInteractions.entries())
+                        .map(([customerId, data]) => ({
+                            customerId,
+                            customerName: data.name,
+                            conversationCount: data.count,
+                            totalDuration: data.duration,
+                            avgDuration: Math.round(data.duration / data.count)
+                        }))
+                        .sort((a, b) => b.conversationCount - a.conversationCount)
+                        .slice(0, 5)
                 },
                 trends: {
-                    daily: conversationsPerDay
+                    daily: Array.from(conversationStats.dailyMetrics.entries())
+                        .map(([date, metrics]) => ({
+                            date,
+                            conversations: metrics.count,
+                            avgDuration: Math.round(metrics.duration / metrics.count)
+                        }))
+                        .sort((a, b) => a.date.localeCompare(b.date))
                 }
             };
 

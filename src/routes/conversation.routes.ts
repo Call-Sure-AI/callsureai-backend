@@ -13,7 +13,7 @@ router.put('/:id', conversationValidation.update, controller.update);
 router.delete('/:id', controller.delete);
 
 // Additional routes for specific queries
-router.get('/customer/:customerId', controller.getConversationsByCustomer);
-router.get('/agent/:agentId', controller.getConversationsByAgent);
+router.get('/customer/:customerId', controller.getByCustomerId);
+router.get('/agent/:agentId', controller.getByAgentId);
 
 export default router;

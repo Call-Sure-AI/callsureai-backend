@@ -3,65 +3,141 @@ import { AppError } from '../utils/app-error';
 import { PrismaService } from '../lib/prisma';
 
 export class CustomerController {
-    async create(req: Request, res: Response, next: NextFunction) {
+    private validateCustomerData = (data: any): boolean => {
+        return (
+            data.name &&
+            typeof data.name === 'string' &&
+            data.name.trim().length > 0 &&
+            data.description &&
+            typeof data.description === 'string' &&
+            data.description.trim().length > 0
+        );
+    };
+
+    create = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { name, description } = req.body;
 
-            const prisma = await PrismaService.getInstance();
+            if (!this.validateCustomerData({ name, description })) {
+                throw new AppError('Invalid customer data', 400);
+            }
 
+            const prisma = await PrismaService.getInstance();
             const customer = await prisma.customer.create({
                 data: { name, description },
+                include: {
+                    businesses: true,
+                    agents: true,
+                    conversations: true
+                }
             });
+
             res.status(201).json(customer);
         } catch (error) {
             next(error);
         }
-    }
+    };
 
-    async getAll(req: Request, res: Response, next: NextFunction) {
+    getAll = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const prisma = await PrismaService.getInstance();
+            const { page = '1', limit = '10' } = req.query;
 
-            const customers = await prisma.customer.findMany({
-                include: {
-                    bus_cus: {
-                        include: {
-                            business: true,
+            const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+            const take = parseInt(limit as string);
+
+            const [customers, total] = await Promise.all([
+                prisma.customer.findMany({
+                    skip,
+                    take,
+                    include: {
+                        businesses: {
+                            select: {
+                                id: true,
+                                type: true,
+                                desc: true
+                            }
                         },
-                    },
-                    cust_agent: {
-                        include: {
-                            agent: true,
+                        agents: {
+                            select: {
+                                id: true,
+                                name: true,
+                                spec: true
+                            }
                         },
+                        conversations: {
+                            select: {
+                                id: true,
+                                timeDate: true,
+                                duration: true
+                            },
+                            orderBy: {
+                                timeDate: 'desc'
+                            },
+                            take: 5
+                        }
                     },
-                },
+                    orderBy: {
+                        name: 'asc'
+                    }
+                }),
+                prisma.customer.count()
+            ]);
+
+            res.json({
+                data: customers,
+                pagination: {
+                    total,
+                    page: parseInt(page as string),
+                    limit: take,
+                    pages: Math.ceil(total / take)
+                }
             });
-            res.json(customers);
         } catch (error) {
             next(error);
         }
-    }
+    };
 
-    async getById(req: Request, res: Response, next: NextFunction) {
+    getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-
             const prisma = await PrismaService.getInstance();
 
             const customer = await prisma.customer.findUnique({
                 where: { id },
                 include: {
-                    bus_cus: {
-                        include: {
-                            business: true,
-                        },
+                    businesses: {
+                        select: {
+                            id: true,
+                            type: true,
+                            desc: true
+                        }
                     },
-                    cust_agent: {
-                        include: {
-                            agent: true,
-                        },
+                    agents: {
+                        select: {
+                            id: true,
+                            name: true,
+                            spec: true
+                        }
                     },
-                },
+                    conversations: {
+                        select: {
+                            id: true,
+                            timeDate: true,
+                            duration: true,
+                            exchange: true,
+                            agent: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
+                        },
+                        orderBy: {
+                            timeDate: 'desc'
+                        }
+                    }
+                }
             });
 
             if (!customer) {
@@ -72,41 +148,59 @@ export class CustomerController {
         } catch (error) {
             next(error);
         }
-    }
+    };
 
-    async update(req: Request, res: Response, next: NextFunction) {
+    update = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
             const { name, description } = req.body;
+
+            if (!this.validateCustomerData({ name, description })) {
+                throw new AppError('Invalid customer data', 400);
+            }
 
             const prisma = await PrismaService.getInstance();
 
             const customer = await prisma.customer.update({
                 where: { id },
                 data: { name, description },
+                include: {
+                    businesses: true,
+                    agents: true
+                }
             });
+
             res.json(customer);
         } catch (error) {
             next(error);
         }
-    }
+    };
 
-    async delete(req: Request, res: Response, next: NextFunction) {
+    delete = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-
             const prisma = await PrismaService.getInstance();
 
-            await prisma.customer.delete({
+            const customerExists = await prisma.customer.findUnique({
                 where: { id },
+                select: { id: true }
             });
+
+            if (!customerExists) {
+                throw new AppError('Customer not found', 404);
+            }
+
+            await prisma.customer.delete({
+                where: { id }
+            });
+
             res.status(204).send();
         } catch (error) {
             next(error);
         }
-    }
+    };
 
-    async createBulk(req: Request, res: Response, next: NextFunction) {
+    createBulk = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const customers = req.body;
 
@@ -114,16 +208,7 @@ export class CustomerController {
                 throw new AppError('Input must be an array of customers', 400);
             }
 
-            const isValid = customers.every(customer => {
-                return (
-                    customer.name &&
-                    typeof customer.name === 'string' &&
-                    customer.name.trim().length > 0 &&
-                    customer.description &&
-                    typeof customer.description === 'string' &&
-                    customer.description.trim().length > 0
-                );
-            });
+            const isValid = customers.every(customer => this.validateCustomerData(customer));
 
             if (!isValid) {
                 throw new AppError('Invalid customer data in bulk create request', 400);
@@ -131,24 +216,32 @@ export class CustomerController {
 
             const prisma = await PrismaService.getInstance();
 
-            const createdCustomers = await prisma.customer.createMany({
-                data: customers,
-                skipDuplicates: true,
+            const createdCustomers = await prisma.$transaction(async (tx) => {
+                await tx.customer.createMany({
+                    data: customers,
+                    skipDuplicates: true
+                });
+
+                return tx.customer.findMany({
+                    where: {
+                        OR: customers.map(customer => ({
+                            name: customer.name,
+                            description: customer.description
+                        }))
+                    },
+                    include: {
+                        businesses: true,
+                        agents: true
+                    },
+                    orderBy: {
+                        name: 'asc'
+                    }
+                });
             });
 
-            const createdCustomerRecords = await prisma.customer.findMany({
-                where: {
-                    OR: customers.map(customer => ({
-                        name: customer.name,
-                        description: customer.description,
-                    })),
-                },
-                take: customers.length,
-            });
-
-            res.status(201).json(createdCustomerRecords);
+            res.status(201).json(createdCustomers);
         } catch (error) {
             next(error);
         }
-    }
+    };
 }
