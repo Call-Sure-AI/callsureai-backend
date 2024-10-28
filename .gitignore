@@ -1,4 +1,8 @@
-node_modules
-# Keep environment variables out of version control
+node_modules/
+coverage/
+dist/
 .env
-.env.local
+.env.test
+*.log
+.DS_Store
+.jest/cache/
