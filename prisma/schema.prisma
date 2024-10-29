@@ -12,43 +12,58 @@ datasource db {
 
 model BusinessAccount {
   id          String     @id @default(uuid())
+  pk          String     @unique @default(uuid()) @map("BusinessAccountPK")
   type        String     @map("BusinessType")
   desc        String     @map("BusinessDesc")
   report      String     @map("BusinessReport")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   customers   Customer[] @relation("BusinessCustomer")
 }
 
 model Customer {
   id          String            @id @default(uuid()) @map("CustomerID")
+  pk          String            @unique @default(uuid()) @map("CustomerPK")
   name        String            @map("CustomerName")
   description String            @map("CustomerDescript")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  conversations Conversation[]
   businesses  BusinessAccount[] @relation("BusinessCustomer")
   agents      Agent[]          @relation("CustomerAgent")
-  conversations Conversation[]
 }
 
 model Agent {
   id          String     @id @default(uuid()) @map("AgentID")
+  pk          String     @unique @default(uuid()) @map("AgentPK")
   name        String     @map("AgentName")
   spec        String     @map("AgentSpec")
   description String     @map("AgentDescription")
   generate    Boolean    @default(false) @map("Generate")
-  customers   Customer[] @relation("CustomerAgent")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   conversations Conversation[]
+  customers   Customer[] @relation("CustomerAgent")
 }
 
 model Conversation {
   id          String    @id @default(uuid())
+  pk          String    @unique @default(uuid()) @map("ConversationPK")
   timeDate    DateTime
   duration    Int
   exchange    String
   transcript  String?
   file        String?
   version     Int       @default(0)
-  customer    Customer  @relation(fields: [customerId], references: [id])
   customerId  String
-  agent       Agent     @relation(fields: [agentId], references: [id])
   agentId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@map("conversations")
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  @@map(" Conversations")
 }
