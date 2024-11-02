@@ -56,14 +56,14 @@ export class AgentController {
                     include: {
                         customers: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true,
                                 description: true
                             }
                         },
                         conversations: {
                             select: {
-                                id: true,
+                                pk: true,
                                 timeDate: true,
                                 duration: true,
                                 exchange: true
@@ -95,24 +95,24 @@ export class AgentController {
         }
     }
 
-    getById = async (req: Request, res: Response, next: NextFunction) => {
+    getByPk = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             const agent = await prisma.agent.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     customers: {
                         select: {
-                            id: true,
+                            pk: true,
                             name: true,
                             description: true
                         }
                     },
                     conversations: {
                         select: {
-                            id: true,
+                            pk: true,
                             timeDate: true,
                             duration: true,
                             exchange: true,
@@ -139,7 +139,7 @@ export class AgentController {
 
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const { name, spec, description } = req.body;
 
             if (!this.validateAgentData({ name, spec, description })) {
@@ -149,12 +149,12 @@ export class AgentController {
             const prisma = await PrismaService.getInstance();
 
             const agent = await prisma.agent.update({
-                where: { id },
+                where: { pk },
                 data: { name, spec, description },
                 include: {
                     customers: {
                         select: {
-                            id: true,
+                            pk: true,
                             name: true
                         }
                     }
@@ -169,12 +169,12 @@ export class AgentController {
 
     delete = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             // Check if agent exists and has no active conversations
             const agentWithConversations = await prisma.agent.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     _count: {
                         select: { conversations: true }
@@ -191,7 +191,7 @@ export class AgentController {
             }
 
             await prisma.agent.delete({
-                where: { id }
+                where: { pk }
             });
 
             res.status(204).send();
@@ -202,7 +202,7 @@ export class AgentController {
 
     getPerformanceMetrics = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const timeframe = (req.query.timeframe as string) || '30d';
 
             const prisma = await PrismaService.getInstance();
@@ -221,7 +221,7 @@ export class AgentController {
 
             // Get agent data with conversations in a single query
             const agentData = await prisma.agent.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     conversations: {
                         where: {
@@ -233,7 +233,7 @@ export class AgentController {
                         include: {
                             customer: {
                                 select: {
-                                    id: true,
+                                    pk: true,
                                     name: true
                                 }
                             }
@@ -244,7 +244,7 @@ export class AgentController {
                     },
                     customers: {
                         select: {
-                            id: true
+                            pk: true
                         }
                     },
                     _count: {
@@ -279,14 +279,14 @@ export class AgentController {
                 stats.dailyMetrics.set(dateKey, dailyData);
 
                 // Update customer interactions
-                const customerData = stats.customerInteractions.get(conv.customer.id) || {
+                const customerData = stats.customerInteractions.get(conv.customer.pk) || {
                     name: conv.customer.name,
                     count: 0,
                     duration: 0
                 };
                 customerData.count++;
                 customerData.duration += conv.duration;
-                stats.customerInteractions.set(conv.customer.id, customerData);
+                stats.customerInteractions.set(conv.customer.pk, customerData);
 
                 return stats;
             }, {
@@ -301,7 +301,7 @@ export class AgentController {
             const metrics = {
                 timeframe,
                 agentInfo: {
-                    id: agentData.id,
+                    pk: agentData.pk,
                     name: agentData.name,
                     spec: agentData.spec,
                     description: agentData.description,
@@ -333,8 +333,8 @@ export class AgentController {
                 },
                 customerInsights: {
                     topCustomers: Array.from(conversationStats.customerInteractions.entries())
-                        .map(([customerId, data]) => ({
-                            customerId,
+                        .map(([customerPk, data]) => ({
+                            customerPk,
                             customerName: data.name,
                             conversationCount: data.count,
                             totalDuration: data.duration,

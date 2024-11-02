@@ -6,10 +6,10 @@ import { Prisma } from '@prisma/client';
 export class ConversationController {
     private validateConversationData(data: any): boolean {
         return (
-            data.customerId &&
-            typeof data.customerId === 'string' &&
-            data.agentId &&
-            typeof data.agentId === 'string' &&
+            data.customerPk &&
+            typeof data.customerPk === 'string' &&
+            data.agentPk &&
+            typeof data.agentPk === 'string' &&
             data.timeDate &&
             !isNaN(new Date(data.timeDate).getTime()) &&
             data.duration &&
@@ -23,9 +23,9 @@ export class ConversationController {
 
     create = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { customerId, agentId, timeDate, duration, exchange, transcript, file } = req.body;
+            const { customerPk, agentPk, timeDate, duration, exchange, transcript, file } = req.body;
 
-            if (!this.validateConversationData({ customerId, agentId, timeDate, duration, exchange })) {
+            if (!this.validateConversationData({ customerPk, agentPk, timeDate, duration, exchange })) {
                 throw new AppError('Invalid conversation data', 400);
             }
 
@@ -39,22 +39,22 @@ export class ConversationController {
                     transcript,
                     file,
                     customer: {
-                        connect: { id: customerId }
+                        connect: { pk: customerPk }
                     },
                     agent: {
-                        connect: { id: agentId }
+                        connect: { pk: agentPk }
                     }
                 },
                 include: {
                     customer: {
                         select: {
-                            id: true,
+                            pk: true,
                             name: true
                         }
                     },
                     agent: {
                         select: {
-                            id: true,
+                            pk: true,
                             name: true,
                             spec: true
                         }
@@ -75,8 +75,8 @@ export class ConversationController {
     getAll = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const {
-                customerId,
-                agentId,
+                customerPk,
+                agentPk,
                 startDate,
                 endDate,
                 page = '1',
@@ -97,12 +97,12 @@ export class ConversationController {
                 };
             }
 
-            if (customerId) {
-                whereClause.customerId = customerId as string;
+            if (customerPk) {
+                whereClause.customerPk = customerPk as string;
             }
 
-            if (agentId) {
-                whereClause.agentId = agentId as string;
+            if (agentPk) {
+                whereClause.agentPk = agentPk as string;
             }
 
             const prisma = await PrismaService.getInstance();
@@ -113,13 +113,13 @@ export class ConversationController {
                     include: {
                         customer: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true
                             }
                         },
                         agent: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true,
                                 spec: true
                             }
@@ -148,13 +148,13 @@ export class ConversationController {
         }
     }
 
-    getById = async (req: Request, res: Response, next: NextFunction) => {
+    getByPk = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             const conversation = await prisma.conversation.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     customer: true,
                     agent: true
@@ -173,7 +173,7 @@ export class ConversationController {
 
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const { timeDate, duration, exchange, transcript, file } = req.body;
 
             const MAX_RETRIES = 3;
@@ -186,7 +186,7 @@ export class ConversationController {
                 try {
                     conversation = await prisma.$transaction(async (tx) => {
                         const current = await tx.conversation.findUnique({
-                            where: { id },
+                            where: { pk },
                             select: { version: true }
                         });
 
@@ -196,7 +196,7 @@ export class ConversationController {
 
                         return await tx.conversation.update({
                             where: {
-                                id,
+                                pk,
                                 version: current.version
                             },
                             data: {
@@ -210,13 +210,13 @@ export class ConversationController {
                             include: {
                                 customer: {
                                     select: {
-                                        id: true,
+                                        pk: true,
                                         name: true
                                     }
                                 },
                                 agent: {
                                     select: {
-                                        id: true,
+                                        pk: true,
                                         name: true,
                                         spec: true
                                     }
@@ -249,12 +249,12 @@ export class ConversationController {
 
     delete = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             const conversation = await prisma.conversation.findUnique({
-                where: { id },
-                select: { id: true }
+                where: { pk },
+                select: { pk: true }
             });
 
             if (!conversation) {
@@ -262,7 +262,7 @@ export class ConversationController {
             }
 
             await prisma.conversation.delete({
-                where: { id }
+                where: { pk }
             });
 
             res.status(204).send();
@@ -271,9 +271,9 @@ export class ConversationController {
         }
     }
 
-    getByCustomerId = async (req: Request, res: Response, next: NextFunction) => {
+    getByCustomerPk = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { customerId } = req.params;
+            const { customerPk } = req.params;
             const { page = '1', limit = '10' } = req.query;
 
             const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -284,12 +284,12 @@ export class ConversationController {
             const [conversations, total] = await Promise.all([
                 prisma.conversation.findMany({
                     where: {
-                        customerId
+                        pk: customerPk
                     },
                     include: {
                         agent: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true,
                                 spec: true
                             }
@@ -302,7 +302,7 @@ export class ConversationController {
                     take
                 }),
                 prisma.conversation.count({
-                    where: { customerId }
+                    where: { pk: customerPk }
                 })
             ]);
 
@@ -320,9 +320,9 @@ export class ConversationController {
         }
     }
 
-    getByAgentId = async (req: Request, res: Response, next: NextFunction) => {
+    getByAgentPk = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { agentId } = req.params;
+            const { agentPk } = req.params;
             const { page = '1', limit = '10' } = req.query;
 
             const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -333,12 +333,12 @@ export class ConversationController {
             const [conversations, total] = await Promise.all([
                 prisma.conversation.findMany({
                     where: {
-                        agentId
+                        pk: agentPk
                     },
                     include: {
                         customer: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true
                             }
                         }
@@ -350,7 +350,7 @@ export class ConversationController {
                     take
                 }),
                 prisma.conversation.count({
-                    where: { agentId }
+                    where: { pk: agentPk }
                 })
             ]);
 

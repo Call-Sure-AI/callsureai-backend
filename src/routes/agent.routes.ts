@@ -7,10 +7,10 @@ const controller = new AgentController();
 
 router.post('/', agentValidation.create, controller.create);
 router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.put('/:id', agentValidation.update, controller.update);
-router.delete('/:id', controller.delete);
+router.get('/:pk', controller.getByPk);
+router.put('/:pk', agentValidation.update, controller.update);
+router.delete('/:pk', controller.delete);
 
-router.get('/:id/performance', controller.getPerformanceMetrics);
+router.get('/:pk/performance', controller.getPerformanceMetrics);
 
 export default router;

@@ -20,6 +20,7 @@ model BusinessAccount {
   updatedAt   DateTime   @updatedAt
 
   customers   Customer[] @relation("BusinessCustomer")
+  @@index([pk], name: "BusinessAccountPK")
 }
 
 model Customer {
@@ -33,6 +34,8 @@ model Customer {
   conversations Conversation[]
   businesses  BusinessAccount[] @relation("BusinessCustomer")
   agents      Agent[]          @relation("CustomerAgent")
+
+  @@index([pk], name: "CustomerPK")
 }
 
 model Agent {
@@ -47,6 +50,8 @@ model Agent {
 
   conversations Conversation[]
   customers   Customer[] @relation("CustomerAgent")
+
+  @@index([pk], name: "AgentPK")
 }
 
 model Conversation {
@@ -58,12 +63,14 @@ model Conversation {
   transcript  String?
   file        String?
   version     Int       @default(0)
-  customerId  String
-  agentId     String
+  customerPk  String
+  agentPk     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  agent       Agent     @relation(fields: [agentId], references: [id])
-  customer    Customer  @relation(fields: [customerId], references: [id])
+  agent       Agent     @relation(fields: [agentPk], references: [pk])
+  customer    Customer  @relation(fields: [customerPk], references: [pk])
+
   @@map(" Conversations")
+  @@index([pk], name: "ConversationPK")
 }

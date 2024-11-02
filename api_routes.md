@@ -23,10 +23,10 @@ Base path: `/businesses`
 |--------|----------|-------------|------------|
 | POST | `/` | Create a new business | Yes |
 | GET | `/` | Get all businesses | No |
-| GET | `/:id` | Get business by ID | No |
-| PUT | `/:id` | Update business by ID | Yes |
-| DELETE | `/:id` | Delete business by ID | No |
-| GET | `/:id/metrics` | Get business metrics | No |
+| GET | `/:pk` | Get business by PK | No |
+| PUT | `/:pk` | Update business by PK | Yes |
+| DELETE | `/:pk` | Delete business by PK | No |
+| GET | `/:pk/metrics` | Get business metrics | No |
 
 ## Customer Routes
 Base path: `/customers`
@@ -35,9 +35,9 @@ Base path: `/customers`
 |--------|----------|-------------|------------|
 | POST | `/` | Create a new customer | Yes |
 | GET | `/` | Get all customers | No |
-| GET | `/:id` | Get customer by ID | No |
-| PUT | `/:id` | Update customer by ID | Yes |
-| DELETE | `/:id` | Delete customer by ID | No |
+| GET | `/:pk` | Get customer by PK | No |
+| PUT | `/:pk` | Update customer by PK | Yes |
+| DELETE | `/:pk` | Delete customer by PK | No |
 | POST | `/bulk` | Create multiple customers | No |
 
 ## Agent Routes
@@ -47,10 +47,10 @@ Base path: `/agents`
 |--------|----------|-------------|------------|
 | POST | `/` | Create a new agent | Yes |
 | GET | `/` | Get all agents | No |
-| GET | `/:id` | Get agent by ID | No |
-| PUT | `/:id` | Update agent by ID | Yes |
-| DELETE | `/:id` | Delete agent by ID | No |
-| GET | `/:id/performance` | Get agent performance metrics | No |
+| GET | `/:pk` | Get agent by PK | No |
+| PUT | `/:pk` | Update agent by PK | Yes |
+| DELETE | `/:pk` | Delete agent by PK | No |
+| GET | `/:pk/performance` | Get agent performance metrics | No |
 
 ## Conversation Routes
 Base path: `/conversations`
@@ -59,11 +59,11 @@ Base path: `/conversations`
 |--------|----------|-------------|------------|
 | POST | `/` | Create a new conversation | Yes |
 | GET | `/` | Get all conversations | Yes |
-| GET | `/:id` | Get conversation by ID | No |
-| PUT | `/:id` | Update conversation by ID | Yes |
-| DELETE | `/:id` | Delete conversation by ID | No |
-| GET | `/customer/:customerId` | Get conversations by customer ID | No |
-| GET | `/agent/:agentId` | Get conversations by agent ID | No |
+| GET | `/:pk` | Get conversation by PK | No |
+| PUT | `/:pk` | Update conversation by PK | Yes |
+| DELETE | `/:pk` | Delete conversation by PK | No |
+| GET | `/customer/:customerPk` | Get conversations by customer PK | No |
+| GET | `/agent/:agentPk` | Get conversations by agent PK | No |
 
 ## Validation
 Each route marked with validation uses middleware validators:

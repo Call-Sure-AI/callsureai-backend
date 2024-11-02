@@ -7,7 +7,7 @@ export const customerValidation = {
         body('description').isString().trim().optional(),
     ]),
     update: validate([
-        param('id').isUUID().withMessage('Invalid customer ID'),
+        param('pk').isUUID().withMessage('Invalid customer PK'),
         body('name').isString().trim().optional(),
         body('description').isString().trim().optional(),
     ]),

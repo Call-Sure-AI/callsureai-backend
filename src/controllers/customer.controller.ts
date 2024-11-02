@@ -53,21 +53,21 @@ export class CustomerController {
                     include: {
                         businesses: {
                             select: {
-                                id: true,
+                                pk: true,
                                 type: true,
                                 desc: true
                             }
                         },
                         agents: {
                             select: {
-                                id: true,
+                                pk: true,
                                 name: true,
                                 spec: true
                             }
                         },
                         conversations: {
                             select: {
-                                id: true,
+                                pk: true,
                                 timeDate: true,
                                 duration: true
                             },
@@ -98,37 +98,37 @@ export class CustomerController {
         }
     };
 
-    getById = async (req: Request, res: Response, next: NextFunction) => {
+    getByPk = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             const customer = await prisma.customer.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     businesses: {
                         select: {
-                            id: true,
+                            pk: true,
                             type: true,
                             desc: true
                         }
                     },
                     agents: {
                         select: {
-                            id: true,
+                            pk: true,
                             name: true,
                             spec: true
                         }
                     },
                     conversations: {
                         select: {
-                            id: true,
+                            pk: true,
                             timeDate: true,
                             duration: true,
                             exchange: true,
                             agent: {
                                 select: {
-                                    id: true,
+                                    pk: true,
                                     name: true
                                 }
                             }
@@ -152,7 +152,7 @@ export class CustomerController {
 
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const { name, description } = req.body;
 
             if (!this.validateCustomerData({ name, description })) {
@@ -162,7 +162,7 @@ export class CustomerController {
             const prisma = await PrismaService.getInstance();
 
             const customer = await prisma.customer.update({
-                where: { id },
+                where: { pk },
                 data: { name, description },
                 include: {
                     businesses: true,
@@ -178,12 +178,12 @@ export class CustomerController {
 
     delete = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const prisma = await PrismaService.getInstance();
 
             const customerExists = await prisma.customer.findUnique({
-                where: { id },
-                select: { id: true }
+                where: { pk },
+                select: { pk: true }
             });
 
             if (!customerExists) {
@@ -191,7 +191,7 @@ export class CustomerController {
             }
 
             await prisma.customer.delete({
-                where: { id }
+                where: { pk }
             });
 
             res.status(204).send();

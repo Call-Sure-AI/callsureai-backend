@@ -8,7 +8,7 @@ export const agentValidation = {
         body('description').isString().trim().optional(),
     ]),
     update: validate([
-        param('id').isUUID().withMessage('Invalid agent ID'),
+        param('pk').isUUID().withMessage('Invalid agent PK'),
         body('name').isString().trim().optional(),
         body('spec').isString().trim().optional(),
         body('description').isString().trim().optional(),

@@ -7,10 +7,10 @@ const controller = new BusinessController();
 
 router.post('/', businessValidation.create, controller.create);
 router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.put('/:id', businessValidation.update, controller.update);
-router.delete('/:id', controller.delete);
+router.get('/:pk', controller.getByPk);
+router.put('/:pk', businessValidation.update, controller.update);
+router.delete('/:pk', controller.delete);
 
-router.get('/:id/metrics', controller.getMetrics);
+router.get('/:pk/metrics', controller.getMetrics);
 
 export default router;

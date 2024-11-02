@@ -42,7 +42,7 @@ export class BusinessController {
                     customers: true
                 },
                 orderBy: {
-                    id: 'asc',
+                    pk: 'asc',
                 },
             });
 
@@ -62,14 +62,14 @@ export class BusinessController {
         }
     }
 
-    async getById(req: Request, res: Response, next: NextFunction) {
+    async getByPk(req: Request, res: Response, next: NextFunction) {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
 
             const prisma = await PrismaService.getInstance();
 
             const business = await prisma.businessAccount.findUnique({
-                where: { id },
+                where: { pk },
                 include: {
                     customers: true,
                 },
@@ -87,13 +87,13 @@ export class BusinessController {
 
     async update(req: Request, res: Response, next: NextFunction) {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
             const { type, desc, report } = req.body;
 
             const prisma = await PrismaService.getInstance();
 
             const business = await prisma.businessAccount.update({
-                where: { id },
+                where: { pk },
                 data: { type, desc, report },
             });
             res.json(business);
@@ -104,12 +104,12 @@ export class BusinessController {
 
     async delete(req: Request, res: Response, next: NextFunction) {
         try {
-            const { id } = req.params;
+            const { pk } = req.params;
 
             const prisma = await PrismaService.getInstance();
 
             await prisma.businessAccount.delete({
-                where: { id },
+                where: { pk },
             });
             res.status(204).send();
         } catch (error) {
@@ -119,12 +119,12 @@ export class BusinessController {
 
     async getMetrics(req: Request, res: Response, next: NextFunction) {
         try {
-            const { id: businessId } = req.params;
+            const { pk: businessPk } = req.params;
             const timeframe = (req.query.timeframe as string) || '30d';
             const prisma = await PrismaService.getInstance();
 
             const business = await prisma.businessAccount.findUnique({
-                where: { id: businessId }
+                where: { pk: businessPk }
             });
 
             if (!business) {
@@ -143,7 +143,7 @@ export class BusinessController {
             }
 
             const businessData = await prisma.businessAccount.findUnique({
-                where: { id: businessId },
+                where: { pk: businessPk },
                 include: {
                     customers: {
                         include: {
@@ -157,7 +157,7 @@ export class BusinessController {
                                 include: {
                                     agent: {
                                         select: {
-                                            id: true,
+                                            pk: true,
                                             name: true
                                         }
                                     }
@@ -186,20 +186,20 @@ export class BusinessController {
 
             businessData.customers.forEach(customer => {
                 if (customer.conversations.length > 0) {
-                    customersWithConversations.add(customer.id);
+                    customersWithConversations.add(customer.pk);
 
                     customer.conversations.forEach(conv => {
                         totalConversations++;
                         totalDuration += conv.duration;
 
-                        const agentData = agentMetrics.get(conv.agent.id) || {
+                        const agentData = agentMetrics.get(conv.agent.pk) || {
                             name: conv.agent.name,
                             conversationCount: 0,
                             totalDuration: 0
                         };
                         agentData.conversationCount++;
                         agentData.totalDuration += conv.duration;
-                        agentMetrics.set(conv.agent.id, agentData);
+                        agentMetrics.set(conv.agent.pk, agentData);
 
                         const dateKey = conv.timeDate.toISOString().split('T')[0];
                         dailyConversations.set(dateKey, (dailyConversations.get(dateKey) || 0) + 1);
@@ -207,8 +207,8 @@ export class BusinessController {
                 }
             });
 
-            const agentPerformance = Array.from(agentMetrics.entries()).map(([agentId, data]) => ({
-                agentId,
+            const agentPerformance = Array.from(agentMetrics.entries()).map(([agentPk, data]) => ({
+                agentPk,
                 agentName: data.name,
                 conversationCount: data.conversationCount,
                 totalDuration: data.totalDuration,

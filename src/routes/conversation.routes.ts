@@ -8,12 +8,12 @@ const controller = new ConversationController();
 // Main CRUD routes
 router.post('/', conversationValidation.create, controller.create);
 router.get('/', conversationValidation.getAll, controller.getAll);
-router.get('/:id', controller.getById);
-router.put('/:id', conversationValidation.update, controller.update);
-router.delete('/:id', controller.delete);
+router.get('/:pk', controller.getByPk);
+router.put('/:pk', conversationValidation.update, controller.update);
+router.delete('/:pk', controller.delete);
 
 // Additional routes for specific queries
-router.get('/customer/:customerId', controller.getByCustomerId);
-router.get('/agent/:agentId', controller.getByAgentId);
+router.get('/customer/:customerPk', controller.getByCustomerPk);
+router.get('/agent/:agentPk', controller.getByAgentPk);
 
 export default router;

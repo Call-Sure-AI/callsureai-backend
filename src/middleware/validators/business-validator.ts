@@ -8,7 +8,7 @@ export const businessValidation = {
         body('report').isString().trim().optional(),
     ]),
     update: validate([
-        param('id').isUUID().withMessage('Invalid business ID'),
+        param('pk').isUUID().withMessage('Invalid business PK'),
         body('type').isString().trim().optional(),
         body('desc').isString().trim().optional(),
         body('report').isString().trim().optional(),

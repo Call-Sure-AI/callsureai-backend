@@ -7,9 +7,9 @@ const controller = new CustomerController();
 
 router.post('/', customerValidation.create, controller.create);
 router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.put('/:id', customerValidation.update, controller.update);
-router.delete('/:id', controller.delete);
+router.get('/:pk', controller.getByPk);
+router.put('/:pk', customerValidation.update, controller.update);
+router.delete('/:pk', controller.delete);
 
 router.post('/bulk', controller.createBulk.bind(controller));
 
