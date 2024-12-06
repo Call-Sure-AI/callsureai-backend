@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,67 +7,110 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BusinessAccount {
-  id          String     @id @default(uuid())
-  pk          String     @unique @default(uuid()) @map("BusinessAccountPK")
-  type        String     @map("BusinessType")
-  desc        String     @map("BusinessDesc")
-  report      String     @map("BusinessReport")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  customers   Customer[] @relation("BusinessCustomer")
-  @@index([pk], name: "BusinessAccountPK")
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
 }
 
-model Customer {
-  id          String            @id @default(uuid()) @map("CustomerID")
-  pk          String            @unique @default(uuid()) @map("CustomerPK")
-  name        String            @map("CustomerName")
-  description String            @map("CustomerDescript")
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  conversations Conversation[]
-  businesses  BusinessAccount[] @relation("BusinessCustomer")
-  agents      Agent[]          @relation("CustomerAgent")
-
-  @@index([pk], name: "CustomerPK")
+  @@id([provider, providerAccountId])
 }
 
-model Agent {
-  id          String     @id @default(uuid()) @map("AgentID")
-  pk          String     @unique @default(uuid()) @map("AgentPK")
-  name        String     @map("AgentName")
-  spec        String     @map("AgentSpec")
-  description String     @map("AgentDescription")
-  generate    Boolean    @default(false) @map("Generate")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  conversations Conversation[]
-  customers   Customer[] @relation("CustomerAgent")
-
-  @@index([pk], name: "AgentPK")
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Conversation {
-  id          String    @id @default(uuid())
-  pk          String    @unique @default(uuid()) @map("ConversationPK")
-  timeDate    DateTime
-  duration    Int
-  exchange    String
-  transcript  String?
-  file        String?
-  version     Int       @default(0)
-  customerPk  String
-  agentPk     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
 
-  agent       Agent     @relation(fields: [agentPk], references: [pk])
-  customer    Customer  @relation(fields: [customerPk], references: [pk])
+  @@id([identifier, token])
+}
 
-  @@map(" Conversations")
-  @@index([pk], name: "ConversationPK")
+model agents {
+  id                   String          @id @default(uuid())
+  name                 String          @db.VarChar(255)
+  type                 String          @db.VarChar(255)
+  company_id           String?
+  prompt               String
+  additional_context   Json?           @db.Json
+  confidence_threshold Float?
+  created_at           DateTime?       @db.Timestamp(6)
+  updated_at           DateTime?       @db.Timestamp(6)
+  template_id          String?         @db.VarChar(255)
+  companies            companies?      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversations        conversations[]
+}
+
+model companies {
+  id               String          @id @default(uuid())
+  name             String          @db.VarChar(255)
+  api_key          String          @unique @db.VarChar(255)
+  created_at       DateTime?       @db.Timestamp(6)
+  updated_at       DateTime?       @db.Timestamp(6)
+  settings         Json?           @db.Json
+  prompt_templates Json            @default("{}")
+  phone_number     String?         @unique @db.VarChar(20)
+  agents           agents[]
+  calls            calls[]
+  conversations    conversations[]
+}
+
+model conversations {
+  id               String     @id @default(uuid())
+  customer_id      String     @db.VarChar(255)
+  company_id       String?
+  current_agent_id String?
+  history          Json?
+  meta_data        Json?      @db.Json
+  created_at       DateTime?  @db.Timestamp(6)
+  updated_at       DateTime?  @db.Timestamp(6)
+  companies        companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  agents           agents?    @relation(fields: [current_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model calls {
+  id            Int        @id @default(autoincrement())
+  call_sid      String?    @unique @db.VarChar(255)
+  company_id    String?
+  from_number   String     @db.VarChar(20)
+  to_number     String     @db.VarChar(20)
+  status        String     @db.VarChar(50)
+  duration      Int?
+  recording_url String?    @db.VarChar(255)
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
+  companies     companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_calls_company_id")
+  @@index([created_at], map: "idx_calls_created_at")
+  @@index([status], map: "idx_calls_status")
 }
