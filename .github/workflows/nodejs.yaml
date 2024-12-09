@@ -54,32 +54,36 @@ jobs:
           name: build-artifact
           path: dist
 
-      - name: Deploy with PM2
+      - name: Deploy to EC2
         run: |
-          echo "Starting deployment..."
+          echo "Deploying to EC2"
           cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
           
-          # Gracefully stop the existing process
-          pm2 stop docker-app || true
+          echo "Stopping existing PM2 process if exists"
+          pm2 delete docker-app || true
           
-          # Stop and remove existing containers
+          echo "Stopping docker compose"
           docker compose --profile prod down
+
+          echo "Creating PM2 startup script"
+          cat > start-docker.sh << 'EOL'
+          #!/bin/bash
+          cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
+          docker compose --profile prod up --build
+          EOL
           
-          # Remove old containers and images
-          docker system prune -af
+          chmod +x start-docker.sh
           
-          # Start the new container with PM2
-          pm2 restart docker-app || pm2 start ./start-docker.sh --name "docker-app"
+          echo "Starting with PM2"
+          pm2 start ./start-docker.sh --name "docker-app"
           
-          # Wait for container to be healthy
-          sleep 10
-          
-          # Verify deployment
-          if docker ps | grep -q "callsureai-backend-app"; then
-            echo "✅ Deployment successful"
-            pm2 save
-          else
-            echo "❌ Deployment failed"
-            pm2 logs docker-app --lines 50
-            exit 1
-          fi
+          echo "Saving PM2 configuration"
+          pm2 save
+
+          echo "Cleaning up"
+          docker system prune -af --volumes
+          rm -f ~/.git-credentials
+
+          echo "Final container status:"
+          docker ps
+          echo "Deployment completed"
