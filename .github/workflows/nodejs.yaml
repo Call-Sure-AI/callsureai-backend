@@ -58,21 +58,35 @@ jobs:
         run: |
           echo "Deploying to EC2"
           cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
-
+          
+          echo "Stopping existing PM2 process if exists"
+          pm2 delete docker-app || true
+          
           echo "Stopping docker compose"
           docker compose --profile prod down
 
-          echo "Starting docker compose"
+          echo "Creating PM2 startup script"
+          cat > start-docker.sh << 'EOL'
+          #!/bin/bash
+          cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
           docker compose --profile prod up --build
+          EOL
+          
+          chmod +x start-docker.sh
+          
+          echo "Starting with PM2"
+          pm2 start ./start-docker.sh --name "docker-app"
+          
+          echo "Saving PM2 configuration"
+          pm2 save
+          
+          echo "Setup PM2 to start on system boot"
+          pm2 startup
 
-          echo "Started docker compose"
-          docker compose --profile prod ps
-
+          echo "Cleaning up"
           docker system prune -af --volumes
           rm -f ~/.git-credentials
 
-          # Print container status
+          echo "Final container status:"
           docker ps
           echo "Deployment completed"
-
-          exit 0
