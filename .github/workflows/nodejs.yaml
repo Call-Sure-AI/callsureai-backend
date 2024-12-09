@@ -39,6 +39,7 @@ jobs:
           package-lock.json
         retention-days: 7
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2
@@ -51,6 +52,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: GITHUB_TOKEN
           script: |
+            ssh -i ${{secrets.EC2_SSH_KEY}} ubuntu@${{secrets.EC2_HOST}}
             # Navigate to app directory
             mkdir -p ~/app
             cd ~/app
