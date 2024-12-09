@@ -44,7 +44,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
