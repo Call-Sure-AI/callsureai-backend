@@ -58,12 +58,15 @@ jobs:
         run: |
           echo "Deploying to EC2"
           cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
-          
+
           echo "Stopping docker compose"
           docker compose --profile prod down
 
           echo "Starting docker compose"
           docker compose --profile prod up --build
+
+          echo "Started docker compose"
+          docker compose --profile prod ps
 
           docker system prune -af --volumes
           rm -f ~/.git-credentials
@@ -71,3 +74,5 @@ jobs:
           # Print container status
           docker ps
           echo "Deployment completed"
+
+          exit 0
