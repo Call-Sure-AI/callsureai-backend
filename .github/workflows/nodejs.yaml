@@ -25,6 +25,9 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
+      run : |
+        touch .env
+        echo "${{secrets.ENV_DATA}}" >> .env
       
     - name: Build
       run: npm run build
@@ -38,64 +41,3 @@ jobs:
           package.json
           package-lock.json
         retention-days: 7
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifact
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN
-          script: |
-            # Navigate to app directory
-            mkdir -p ~/app
-            cd ~/app
-            
-            # Configure Git credentials
-            git config --global credential.helper store
-            echo "https://$GITHUB_TOKEN:x-oauth-basic@github.com" > ~/.git-credentials
-            
-            # Pull latest code
-            if [ -d "backend" ]; then
-              cd backend
-              git pull
-            else
-              git clone https://github.com/callsure-ai/callsureai-backend.git backend
-              cd backend
-            fi
-            
-            # Create/Update env file
-            cat > .env << EOL
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            PORT=${{ secrets.PORT }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            NODE_ENV=production
-            EOL
-            
-            # Ensure Docker is running
-            sudo systemctl start docker
-            
-            # Build and restart containers
-            docker compose --profile prod down
-            docker compose --profile prod up --build -d
-            
-            # Clean up old images and git credentials
-            docker system prune -af --volumes
-            rm -f ~/.git-credentials
-
-            # Print container status
-            docker ps
-            echo "Deployment completed"
