@@ -38,10 +38,16 @@ jobs:
           package.json
           package-lock.json
         retention-days: 7
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifact
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         env:
@@ -52,7 +58,6 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: GITHUB_TOKEN
           script: |
-            ssh -i ${{secrets.EC2_SSH_KEY}} ubuntu@${{secrets.EC2_HOST}}
             # Navigate to app directory
             mkdir -p ~/app
             cd ~/app
@@ -85,7 +90,7 @@ jobs:
             
             # Build and restart containers
             docker compose --profile prod down
-            docker compose --profile prod up --build
+            docker compose --profile prod up --build -d
             
             # Clean up old images and git credentials
             docker system prune -af --volumes
