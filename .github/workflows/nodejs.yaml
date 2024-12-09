@@ -41,3 +41,49 @@ jobs:
           package.json
           package-lock.json
         retention-days: 7
+  deploy:
+    runs-on: self-hosted
+    needs: build
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-production.outputs.url }}
+    steps : 
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with: 
+          name: build-artifact
+          path: dist
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USERNAME }}
+        run: |
+          # Write the SSH key to a file
+          echo ${{ secrets.EC2_SSH_KEY }} > private_key.pem
+          chmod 600 private_key.pem
+          
+          # Copy files to EC2
+          scp -i private_key.pem -o StrictHostKeyChecking=no -r \
+            dist/* \
+            package.json \
+            package-lock.json \
+            Dockerfile.prod \
+            docker-compose.yml \
+            .env \
+            $USER@$HOST:~/app/
+          
+          # SSH into EC2 and deploy
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST '
+            cd ~/app
+            docker-compose --profile prod down
+            docker-compose --prodile prod up build
+          '

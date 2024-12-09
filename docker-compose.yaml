@@ -23,6 +23,7 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     profiles: ["prod"]
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
