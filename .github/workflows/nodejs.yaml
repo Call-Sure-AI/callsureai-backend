@@ -54,39 +54,32 @@ jobs:
           name: build-artifact
           path: dist
 
-      - name: Deploy to EC2
+      - name: Deploy with PM2
         run: |
-          echo "Deploying to EC2"
+          echo "Starting deployment..."
           cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
           
-          echo "Stopping existing PM2 process if exists"
-          pm2 delete docker-app || true
+          # Gracefully stop the existing process
+          pm2 stop docker-app || true
           
-          echo "Stopping docker compose"
+          # Stop and remove existing containers
           docker compose --profile prod down
-
-          echo "Creating PM2 startup script"
-          cat > start-docker.sh << 'EOL'
-          #!/bin/bash
-          cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
-          docker compose --profile prod up --build
-          EOL
           
-          chmod +x start-docker.sh
+          # Remove old containers and images
+          docker system prune -af
           
-          echo "Starting with PM2"
-          pm2 start ./start-docker.sh --name "docker-app"
+          # Start the new container with PM2
+          pm2 restart docker-app || pm2 start ./start-docker.sh --name "docker-app"
           
-          echo "Saving PM2 configuration"
-          pm2 save
+          # Wait for container to be healthy
+          sleep 10
           
-          echo "Setup PM2 to start on system boot"
-          pm2 startup
-
-          echo "Cleaning up"
-          docker system prune -af --volumes
-          rm -f ~/.git-credentials
-
-          echo "Final container status:"
-          docker ps
-          echo "Deployment completed"
+          # Verify deployment
+          if docker ps | grep -q "callsureai-backend-app"; then
+            echo "✅ Deployment successful"
+            pm2 save
+          else
+            echo "❌ Deployment failed"
+            pm2 logs docker-app --lines 50
+            exit 1
+          fi
