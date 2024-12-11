@@ -84,7 +84,4 @@ jobs:
           echo "Cleaning up"
           docker system prune -af --volumes
           rm -f ~/.git-credentials
-
-          echo "Final container status:"
-          docker ps
           echo "Deployment completed"
