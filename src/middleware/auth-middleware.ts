@@ -18,7 +18,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
             return res.status(401).json({ error: 'Missing authentication token' })
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'callsure')
         req.user = decoded
 
         next()

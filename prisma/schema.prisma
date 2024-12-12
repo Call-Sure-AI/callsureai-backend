@@ -17,6 +17,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+  agents        Agent[]
+  companies    Company[]
 }
 
 model Account {
@@ -55,36 +57,51 @@ model VerificationToken {
   @@id([identifier, token])
 }
 
-model agents {
+model Agent {
   id                   String          @id @default(uuid())
+  user_id              String          @db.VarChar(255)
   name                 String          @db.VarChar(255)
   type                 String          @db.VarChar(255)
   company_id           String?
   prompt               String
   additional_context   Json?           @db.Json
   confidence_threshold Float?
+  files                String[]       @db.VarChar(255)
   created_at           DateTime?       @db.Timestamp(6)
   updated_at           DateTime?       @db.Timestamp(6)
   template_id          String?         @db.VarChar(255)
-  companies            companies?      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  conversations        conversations[]
+  companies            Company?      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                User?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversations        Conversation[]
+
+  @@index([user_id], map: "idx_agents_user_id")
 }
 
-model companies {
+model Company {
   id               String          @id @default(uuid())
+  user_id          String          @db.VarChar(255)
   name             String          @db.VarChar(255)
-  api_key          String          @unique @db.VarChar(255)
+  business_name    String          @db.VarChar(255)
+  email            String          @unique
+  address          String          @db.VarChar(255)
+  website          String?          @db.VarChar(255)
+  logo             String?         @db.VarChar(255)
+  prompt_templates Json?            @default("{}")
+  api_key          String?          @unique @db.VarChar(255)
+  phone_number     String?         @unique @db.VarChar(20)
   created_at       DateTime?       @db.Timestamp(6)
   updated_at       DateTime?       @db.Timestamp(6)
   settings         Json?           @db.Json
-  prompt_templates Json            @default("{}")
-  phone_number     String?         @unique @db.VarChar(20)
-  agents           agents[]
-  calls            calls[]
-  conversations    conversations[]
+
+  user             User?            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  agents           Agent[]
+  calls            Call[]
+  conversations    Conversation[]
+  @@index([user_id], map: "idx_companies_user_id")
 }
 
-model conversations {
+model Conversation {
   id               String     @id @default(uuid())
   customer_id      String     @db.VarChar(255)
   company_id       String?
@@ -93,11 +110,12 @@ model conversations {
   meta_data        Json?      @db.Json
   created_at       DateTime?  @db.Timestamp(6)
   updated_at       DateTime?  @db.Timestamp(6)
-  companies        companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  agents           agents?    @relation(fields: [current_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  companies        Company? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  agents           Agent?    @relation(fields: [current_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model calls {
+model Call {
   id            Int        @id @default(autoincrement())
   call_sid      String?    @unique @db.VarChar(255)
   company_id    String?
@@ -108,7 +126,7 @@ model calls {
   recording_url String?    @db.VarChar(255)
   created_at    DateTime?  @default(now()) @db.Timestamp(6)
   updated_at    DateTime?  @default(now()) @db.Timestamp(6)
-  companies     companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies     Company? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([company_id], map: "idx_calls_company_id")
   @@index([created_at], map: "idx_calls_created_at")
