@@ -8,7 +8,7 @@ export class AgentController {
     static async getAll(req: Request, res: Response) {
         try {
             const prisma = await PrismaService.getInstance();
-            const agents = await prisma.agents.findMany({
+            const agents = await prisma.agent.findMany({
                 include: {
                     companies: true,
                     conversations: true
@@ -26,7 +26,7 @@ export class AgentController {
         try {
             const { id } = req.params;
             const prisma = await PrismaService.getInstance();
-            const agent = await prisma.agents.findUnique({
+            const agent = await prisma.agent.findUnique({
                 where: { id },
                 include: {
                     companies: true,
@@ -51,12 +51,14 @@ export class AgentController {
             const validatedData = createAgentSchema.parse(req.body);
             const prisma = await PrismaService.getInstance();
 
-            const agent = await prisma.agents.create({
-                data: {
-                    ...validatedData,
-                    created_at: new Date(),
-                    updated_at: new Date()
-                }
+            const data = {
+                ...validatedData,
+                created_at: new Date(),
+                updated_at: new Date()
+            } as any;
+
+            const agent = await prisma.agent.create({
+                data
             });
 
             return res.status(201).json(agent);
@@ -76,7 +78,7 @@ export class AgentController {
             const validatedData = updateAgentSchema.parse(req.body);
             const prisma = await PrismaService.getInstance();
 
-            const agent = await prisma.agents.update({
+            const agent = await prisma.agent.update({
                 where: { id },
                 data: {
                     ...validatedData,
@@ -103,7 +105,7 @@ export class AgentController {
             const { id } = req.params;
             const prisma = await PrismaService.getInstance();
 
-            await prisma.agents.delete({
+            await prisma.agent.delete({
                 where: { id }
             });
 
