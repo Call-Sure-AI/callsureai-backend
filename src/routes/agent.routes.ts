@@ -5,10 +5,10 @@ import { validateRequest } from '../middleware/validate';
 
 const router = Router();
 
-router.get('/agents', AgentController.getAll);
-router.get('/agents/:id', AgentController.getById);
-router.post('/agents', validateRequest(createAgentSchema), AgentController.create);
-router.put('/agents/:id', validateRequest(updateAgentSchema), AgentController.update);
-router.delete('/agents/:id', AgentController.delete);
+router.get('', AgentController.getAll);
+router.get('/:id', AgentController.getById);
+router.post('', validateRequest(createAgentSchema), AgentController.create);
+router.put('/:id', validateRequest(updateAgentSchema), AgentController.update);
+router.delete('/:id', AgentController.delete);
 
 export default router;

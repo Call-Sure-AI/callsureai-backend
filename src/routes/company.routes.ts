@@ -9,11 +9,11 @@ const router = Router();
 // TODO : Implement Auth Middleware
 // router.use(authenticateUser);
 
-router.get('/companies', CompanyController.getAllForUser);
-router.get('/companies/:id', CompanyController.getById);
-router.post('/companies', validateRequest(createCompanySchema), CompanyController.create);
-router.put('/companies/:id', validateRequest(updateCompanySchema), CompanyController.update);
-router.delete('/companies/:id', CompanyController.delete);
-router.post('/companies/:id/regenerate-api-key', CompanyController.regenerateApiKey);
+router.get('', CompanyController.getAllForUser);
+router.get('/:id', CompanyController.getById);
+router.post('', validateRequest(createCompanySchema), CompanyController.create);
+router.put('/:id', validateRequest(updateCompanySchema), CompanyController.update);
+router.delete('/:id', CompanyController.delete);
+router.post('/:id/regenerate-api-key', CompanyController.regenerateApiKey);
 
 export default router;
