@@ -57,7 +57,7 @@ jobs:
       - name: Deploy to EC2
         run: |
           echo "Deploying to EC2"
-          cd /home/${{secrets.EC2_USERNAME}}/_work/callsureai-backend/callsureai-backend/
+          cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
           
           echo "Stopping existing PM2 process if exists"
           pm2 delete docker-app || true
@@ -68,7 +68,7 @@ jobs:
           echo "Creating PM2 startup script"
           cat > start-docker.sh << 'EOL'
           #!/bin/bash
-          cd /home/${{secrets.EC2_USERNAME}}/_work/callsureai-backend/callsureai-backend/
+          cd /home/${{secrets.EC2_USERNAME}}/actions-runner/_work/callsureai-backend/callsureai-backend/
           docker compose --profile prod down
           docker compose --profile prod up --build
           EOL
