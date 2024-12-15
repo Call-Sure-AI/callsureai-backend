@@ -11,7 +11,7 @@ const router = Router();
 
 router.get('', CompanyController.getAllForUser);
 router.get('/:id', CompanyController.getById);
-router.get('/:user_id', CompanyController.getByUserId);
+router.get('/user/:user_id', CompanyController.getByUserId);
 router.post('', validateRequest(createCompanySchema), CompanyController.create);
 router.post('/create-or-update', validateRequest(createCompanySchema), CompanyController.createOrUpdate);
 router.put('/:id', validateRequest(updateCompanySchema), CompanyController.update);
