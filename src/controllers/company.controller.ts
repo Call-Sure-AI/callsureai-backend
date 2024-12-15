@@ -7,10 +7,11 @@ import { createCompanySchema, updateCompanySchema } from '../middleware/validato
 export class CompanyController {
   static async getAllForUser(req: Request, res: Response) {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
+      // const userId = req.user?.id;
+      // if (!userId) {
+      //   return res.status(401).json({ error: 'Unauthorized' });
+      // }
+      const userId = req.params.user_id;
 
       const prisma = await PrismaService.getInstance();
       const companies = await prisma.company.findMany({
@@ -43,11 +44,12 @@ export class CompanyController {
   static async getById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const userId = req.user?.id;
+      const userId = req.params.user_id;
+      // const userId = req.user?.id;
 
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
+      // if (!userId) {
+      //   return res.status(401).json({ error: 'Unauthorized' });
+      // }
 
       const prisma = await PrismaService.getInstance();
       const company = await prisma.company.findFirst({
@@ -143,9 +145,7 @@ export class CompanyController {
 
   static async createOrUpdate(req: Request, res: Response) {
     try {
-      console.log("req.body", req.body);
       const { user_id } = req.body;
-      console.log("user_id", user_id);
 
       if (!user_id) {
         return res.status(401).json({ error: 'Unauthorized' });
