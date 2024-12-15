@@ -17,6 +17,7 @@ export class AuthController {
     static async googleAuth(req: Request, res: Response) {
         try {
             const { idToken } = req.body;
+            let newUser = false;
 
             if (!idToken) {
                 return res.status(400).json({ error: 'ID token is required' });
@@ -60,6 +61,7 @@ export class AuthController {
 
             if (!user) {
                 // Create new user
+                newUser = true;
                 user = await prisma.user.create({
                     data: {
                         email,
@@ -110,7 +112,8 @@ export class AuthController {
                     email: user.email,
                     name: user.name,
                     image: user.image
-                }
+                },
+                newUser
             });
 
         } catch (error: any) {
