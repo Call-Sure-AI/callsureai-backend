@@ -49,6 +49,7 @@ export class AgentController {
     static async getByUserId(req: Request, res: Response) {
         try {
             const { user_id } = req.params;
+            console.log(user_id);
             const prisma = await PrismaService.getInstance();
             const agents = await prisma.agent.findMany({
                 where: { user_id },

@@ -6,8 +6,8 @@ import { validateRequest } from '../middleware/validate';
 const router = Router();
 
 router.get('', AgentController.getAll);
+router.get('/user/:user_id', AgentController.getByUserId);
 router.get('/:id', AgentController.getById);
-router.get('/:user_id', AgentController.getByUserId);
 router.post('', validateRequest(createAgentSchema), AgentController.create);
 router.put('/:id', validateRequest(updateAgentSchema), AgentController.update);
 router.delete('/:id', AgentController.delete);

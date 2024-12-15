@@ -10,22 +10,43 @@ declare global {
     }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const token = req.headers.authorization?.split(' ')[1]
+export interface AuthRequest extends Request {
+    user?: {
+        id: string;
+        email: string;
+        image: string;
+    };
+}
 
-        if (!token) {
-            return res.status(401).json({ error: 'Missing authentication token' })
+export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No token provided' });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'callsure')
-        req.user = decoded
+        const token = authHeader.split(' ')[1];
 
-        next()
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
+            req.user = {
+                id: decoded.userId,
+                email: decoded.email,
+                image: decoded.image
+            };
+            next();
+        } catch (error) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
     } catch (error) {
-        return res.status(401).json({ error: 'Invalid authentication token' })
+        return res.status(500).json({ error: 'Internal server error' });
     }
-}
+};
 
 export const validateRequest = (schema: z.ZodSchema) => {
     return async (req: Request, res: Response, next: NextFunction) => {
