@@ -12,6 +12,7 @@ const router = Router();
 router.get('', CompanyController.getAllForUser);
 router.get('/:id', CompanyController.getById);
 router.post('', validateRequest(createCompanySchema), CompanyController.create);
+router.post('/create-or-update', validateRequest(createCompanySchema), CompanyController.createOrUpdate);
 router.put('/:id', validateRequest(updateCompanySchema), CompanyController.update);
 router.delete('/:id', CompanyController.delete);
 router.post('/:id/regenerate-api-key', CompanyController.regenerateApiKey);

@@ -83,6 +83,25 @@ export class CompanyController {
     }
   }
 
+  // Get companies by user_id
+  static async getByUserId(req: Request, res: Response) {
+    try {
+      const { user_id } = req.params;
+      const prisma = await PrismaService.getInstance();
+      const companies = await prisma.company.findMany({
+        where: { user_id },
+        include: {
+          agents: true,
+          calls: true
+        }
+      });
+      return res.status(200).json(companies);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   // Create new company
   static async create(req: Request, res: Response) {
     try {
@@ -118,6 +137,60 @@ export class CompanyController {
         return res.status(400).json({ error: 'Email or phone number already exists' });
       }
       console.error('Error creating company:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  static async createOrUpdate(req: Request, res: Response) {
+    try {
+      console.log("req.body", req.body);
+      const { user_id } = req.body;
+      console.log("user_id", user_id);
+
+      if (!user_id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const validatedData = createCompanySchema.parse(req.body);
+      const prisma = await PrismaService.getInstance();
+
+      // Check if company exists for the user
+      const existingCompany = await prisma.company.findFirst({
+        where: { user_id }
+      });
+
+      if (existingCompany) {
+        // Update existing company
+        const updatedCompany = await prisma.company.update({
+          where: { id: existingCompany.id },
+          data: {
+            ...validatedData,
+            updated_at: new Date()
+          }
+        });
+        return res.status(200).json(updatedCompany);
+      } else {
+        // Create new company
+        const apiKey = crypto.randomBytes(32).toString('hex');
+        const newCompany = await prisma.company.create({
+          data: {
+            ...validatedData,
+            user_id,
+            api_key: apiKey,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        });
+        return res.status(201).json(newCompany);
+      }
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.issues });
+      }
+      if (error.code === 'P2002') {
+        return res.status(400).json({ error: 'Email or phone number already exists' });
+      }
+      console.error('Error creating/updating company:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }

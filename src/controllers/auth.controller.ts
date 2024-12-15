@@ -48,14 +48,15 @@ export class AuthController {
             }
 
             // Find or create user
-            let user = await prisma.user.findUnique({
+            let user: any = await prisma.user.findUnique({
                 where: { email },
                 include: {
                     accounts: {
                         where: {
                             provider: 'google'
                         }
-                    }
+                    },
+                    companies: true
                 }
             });
 
@@ -113,7 +114,8 @@ export class AuthController {
                     name: user.name,
                     image: user.image
                 },
-                newUser
+                newUser,
+                companies: user.companies
             });
 
         } catch (error: any) {

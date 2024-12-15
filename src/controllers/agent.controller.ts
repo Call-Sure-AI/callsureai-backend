@@ -67,9 +67,7 @@ export class AgentController {
     // Create new agent
     static async create(req: Request, res: Response) {
         try {
-            console.log('Creating agent', req.body);
             const validatedData = createAgentSchema.parse(req.body);
-            console.log("validatedData", validatedData);
             const prisma = await PrismaService.getInstance();
 
             const data = {
@@ -78,13 +76,9 @@ export class AgentController {
                 updated_at: new Date()
             } as any;
 
-            console.log("data", data);
-
             const agent = await prisma.agent.create({
                 data
             });
-
-            console.log("agent", agent);
 
             return res.status(201).json(agent);
         } catch (error) {
