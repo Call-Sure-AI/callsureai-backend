@@ -45,10 +45,31 @@ export class AgentController {
         }
     }
 
+    // Get agents by user_id
+    static async getByUserId(req: Request, res: Response) {
+        try {
+            const { user_id } = req.params;
+            const prisma = await PrismaService.getInstance();
+            const agents = await prisma.agent.findMany({
+                where: { user_id },
+                include: {
+                    companies: true,
+                    conversations: true
+                }
+            });
+            return res.status(200).json(agents);
+        } catch (error) {
+            console.error('Error fetching agents:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
     // Create new agent
     static async create(req: Request, res: Response) {
         try {
+            console.log('Creating agent', req.body);
             const validatedData = createAgentSchema.parse(req.body);
+            console.log("validatedData", validatedData);
             const prisma = await PrismaService.getInstance();
 
             const data = {
@@ -57,9 +78,13 @@ export class AgentController {
                 updated_at: new Date()
             } as any;
 
+            console.log("data", data);
+
             const agent = await prisma.agent.create({
                 data
             });
+
+            console.log("agent", agent);
 
             return res.status(201).json(agent);
         } catch (error) {
