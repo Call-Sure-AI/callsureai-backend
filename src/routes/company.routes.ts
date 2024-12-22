@@ -7,10 +7,7 @@ import { authMiddleware } from '../middleware/auth-middleware';
 
 const router = Router();
 
-router.get('', authMiddleware, CompanyController.getAllForUser);
-router.get('/:id', authMiddleware, CompanyController.getById);
-router.get('/user/:user_id', authMiddleware, CompanyController.getByUserId);
-router.post('', authMiddleware, validateRequest(createCompanySchema), CompanyController.create);
+router.get('', authMiddleware, CompanyController.getById);
 router.post('/create-or-update', authMiddleware, validateRequest(createCompanySchema), CompanyController.createOrUpdate);
 router.put('/:id', authMiddleware, validateRequest(updateCompanySchema), CompanyController.update);
 router.delete('/:id', authMiddleware, CompanyController.delete);

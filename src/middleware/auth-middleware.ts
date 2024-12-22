@@ -14,7 +14,6 @@ export interface AuthRequest extends Request {
     user?: {
         id: string;
         email: string;
-        image: string;
     };
 }
 
@@ -35,9 +34,8 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
             req.user = {
-                id: decoded.userId,
+                id: decoded.id,
                 email: decoded.email,
-                image: decoded.image
             };
             next();
         } catch (error) {

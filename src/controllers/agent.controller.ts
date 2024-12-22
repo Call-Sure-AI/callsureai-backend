@@ -7,8 +7,10 @@ export class AgentController {
     // Get all agents
     static async getAll(req: Request, res: Response) {
         try {
+            const { id } = req.user;
             const prisma = await PrismaService.getInstance();
             const agents = await prisma.agent.findMany({
+                where: { user_id: id },
                 include: {
                     companies: true,
                     conversations: true
@@ -48,8 +50,7 @@ export class AgentController {
     // Get agents by user_id
     static async getByUserId(req: Request, res: Response) {
         try {
-            const { user_id } = req.params;
-            console.log(user_id);
+            const { id: user_id } = req.user;
             const prisma = await PrismaService.getInstance();
             const agents = await prisma.agent.findMany({
                 where: { user_id },
