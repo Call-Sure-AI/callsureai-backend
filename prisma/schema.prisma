@@ -62,9 +62,11 @@ model Agent {
   user_id              String          @db.VarChar(255)
   name                 String          @db.VarChar(255)
   type                 String          @db.VarChar(255)
+  is_active            Boolean         @default(true)
   company_id           String?
   prompt               String
   additional_context   Json?           @db.Json
+  advanced_settings    Json?           @db.Json
   confidence_threshold Float?
   files                String[]       @db.VarChar(255)
   created_at           DateTime?       @db.Timestamp(6)
