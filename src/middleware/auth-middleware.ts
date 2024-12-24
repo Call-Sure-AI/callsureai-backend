@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
+import { PrismaService } from '../lib/prisma';
 
 declare global {
     namespace Express {
@@ -31,8 +32,19 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
             return res.status(401).json({ error: 'No token provided' });
         }
 
+        const prisma = await PrismaService.getInstance();
+
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
+            const user = prisma.user.findUnique({
+                where: { id: decoded.id },
+                select: { id: true, email: true }
+            });
+
+            if (!user) {
+                return res.status(401).json({ error: 'Invalid token' });
+            }
+
             req.user = {
                 id: decoded.id,
                 email: decoded.email,

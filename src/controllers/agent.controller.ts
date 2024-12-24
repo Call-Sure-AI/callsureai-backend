@@ -7,6 +7,10 @@ export class AgentController {
     // Get all agents
     static async getAll(req: Request, res: Response) {
         try {
+            const agentId = req.query.id as string;
+            if (agentId) {
+                return AgentController.getById(req, res, agentId);
+            }
             const { id } = req.user;
             const prisma = await PrismaService.getInstance();
             const agents = await prisma.agent.findMany({
@@ -24,9 +28,8 @@ export class AgentController {
     }
 
     // Get single agent by ID
-    static async getById(req: Request, res: Response) {
+    static async getById(req: Request, res: Response, id: string) {
         try {
-            const { id } = req.params;
             const prisma = await PrismaService.getInstance();
             const agent = await prisma.agent.findUnique({
                 where: { id },

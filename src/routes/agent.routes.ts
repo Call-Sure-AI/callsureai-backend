@@ -6,9 +6,9 @@ import { authMiddleware } from '../middleware/auth-middleware';
 
 const router = Router();
 
-router.get('', authMiddleware, AgentController.getAll);
 router.get('/user/:user_id', authMiddleware, AgentController.getByUserId);
-router.post('', authMiddleware, validateRequest(createAgentSchema), AgentController.create);
+router.get('', authMiddleware, AgentController.getAll);
+router.post('/', authMiddleware, validateRequest(createAgentSchema), AgentController.create);
 router.put('/:id', authMiddleware, validateRequest(updateAgentSchema), AgentController.update);
 router.delete('/:id', authMiddleware, AgentController.delete);
 
