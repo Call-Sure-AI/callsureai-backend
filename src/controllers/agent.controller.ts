@@ -8,9 +8,11 @@ export class AgentController {
     static async getAll(req: Request, res: Response) {
         try {
             const agentId = req.query.id as string;
+
             if (agentId) {
                 return AgentController.getById(req, res, agentId);
             }
+
             const { id } = req.user;
             const prisma = await PrismaService.getInstance();
             const agents = await prisma.agent.findMany({
@@ -102,12 +104,23 @@ export class AgentController {
             const validatedData = updateAgentSchema.parse(req.body);
             const prisma = await PrismaService.getInstance();
 
+            const checkAgent = await prisma.agent.findUnique({
+                where: { id },
+            });
+
+            if (!checkAgent) {
+                return res.status(404).json({ error: 'Agent not found' });
+            }
+
+            const data = {
+                ...checkAgent,
+                ...validatedData,
+                updated_at: new Date()
+            }
+
             const agent = await prisma.agent.update({
                 where: { id },
-                data: {
-                    ...validatedData,
-                    updated_at: new Date()
-                }
+                data
             });
 
             return res.status(200).json(agent);
