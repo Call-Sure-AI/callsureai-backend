@@ -1,19 +1,12 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { S3Controller } from '../controllers/s3.controller';
+import { s3Controller } from '../lib/s3.config';
 
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 5 * 1024 * 1024,
     }
-});
-
-const s3Controller = new S3Controller({
-    region: process.env.AWS_REGION!,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_KEY!,
-    bucketName: process.env.AWS_BUCKET_NAME!
 });
 
 const router = Router();
@@ -50,6 +43,8 @@ router.post('/upload-multiple',
                     error: 'No files provided'
                 });
             }
+
+            console.log("FILES", req.files);
 
             const results = await s3Controller.uploadMultipleFiles(req.files);
             return res.status(200).json({

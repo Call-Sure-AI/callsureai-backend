@@ -37,7 +37,8 @@ export class S3Controller {
                 Bucket: this.bucketName,
                 Key: key,
                 Body: file.buffer,
-                ContentType: file.mimetype
+                ContentType: file.mimetype,
+                ACL: 'public-read'
             });
 
             const result = await this.s3Client.send(command);
@@ -45,7 +46,7 @@ export class S3Controller {
             return {
                 success: true,
                 key,
-                location: `https://${this.bucketName}.s3.amazonaws.com/${key}`,
+                url: `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
                 data: result
             };
         } catch (error) {
@@ -58,6 +59,7 @@ export class S3Controller {
     }
 
     async uploadMultipleFiles(files: Express.Multer.File[]) {
+        console.log("MULTIPLE FILES", files);
         const uploadPromises = files.map(file => this.uploadFile(file));
         return Promise.all(uploadPromises);
     }
