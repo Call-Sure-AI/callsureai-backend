@@ -30,7 +30,7 @@ export class S3Controller {
         this.bucketName = config.bucketName;
     }
 
-    async uploadFile(file: Express.Multer.File) {
+    async uploadFile(file: Express.Multer.File, enablePublicReadAccess: boolean = true) {
         try {
             const key = `${Date.now()}-${file.originalname}`;
             const command = new PutObjectCommand({
@@ -38,7 +38,7 @@ export class S3Controller {
                 Key: key,
                 Body: file.buffer,
                 ContentType: file.mimetype,
-                ACL: 'public-read'
+                ACL: enablePublicReadAccess ? 'public-read' : 'private'
             });
 
             const result = await this.s3Client.send(command);
@@ -60,7 +60,7 @@ export class S3Controller {
 
     async uploadMultipleFiles(files: Express.Multer.File[]) {
         console.log("MULTIPLE FILES", files);
-        const uploadPromises = files.map(file => this.uploadFile(file));
+        const uploadPromises = files.map(file => this.uploadFile(file, false));
         return Promise.all(uploadPromises);
     }
 

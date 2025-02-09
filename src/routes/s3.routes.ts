@@ -6,6 +6,8 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 5 * 1024 * 1024,
+        fieldSize: 20 * 1024 * 1024,
+        files: 10
     }
 });
 
@@ -34,7 +36,29 @@ router.post('/upload',
 );
 
 router.post('/upload-multiple',
-    upload.array('files', 10),
+    (req, res, next) => {
+        upload.array('files', 10)(req, res, (err) => {
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(413).json({
+                        success: false,
+                        error: 'File size is too large. Maximum size is 5MB per file'
+                    });
+                }
+                if (err.code === 'LIMIT_FILE_COUNT') {
+                    return res.status(413).json({
+                        success: false,
+                        error: 'Too many files. Maximum is 10 files'
+                    });
+                }
+                return res.status(400).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+            next();
+        });
+    },
     async (req: Request, res: Response) => {
         try {
             if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
@@ -43,8 +67,6 @@ router.post('/upload-multiple',
                     error: 'No files provided'
                 });
             }
-
-            console.log("FILES", req.files);
 
             const results = await s3Controller.uploadMultipleFiles(req.files);
             return res.status(200).json({
