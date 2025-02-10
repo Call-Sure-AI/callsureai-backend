@@ -71,6 +71,7 @@ jobs:
           cd /home/${{secrets.EC2_USERNAME}}/_work/callsureai-backend/callsureai-backend/
           docker compose --profile prod down
           docker compose --profile prod up --build
+          docker run -p 8080:8080 docker-app
           EOL
           
           chmod +x start-docker.sh
