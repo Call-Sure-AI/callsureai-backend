@@ -11,7 +11,7 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/company', companyRoutes);
 router.use('/agent', agentRoutes);
-router.use('/check-status', (req, res) => res.status(200).json({ message: 'active' }))
+router.use('/check-status', (req, res) => res.status(200).json({ message: '🟩 active' }))
 router.use('/files', s3Routes);
 
 export { router };
