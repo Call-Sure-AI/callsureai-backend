@@ -43,14 +43,28 @@ jobs:
             script: |
               docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
+        - name: Create env file on EC2
+          uses: appleboy/ssh-action@master
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USERNAME }}
+            key: ${{ secrets.EC2_SSH_KEY }}
+            envs: ENV_DATA
+            script: |
+              echo "${{ secrets.ENV_DATA }}" > .env
+
         - name: Deploy to EC2
           uses: appleboy/ssh-action@master
           with:
-            host: ${{ secrets.PROD_HOST }}
-            username: ${{ secrets.PROD_USERNAME }}
-            key: ${{ secrets.PROD_SSH_KEY }}
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USERNAME }}
+            key: ${{ secrets.EC2_SSH_KEY }}
             script: |
               docker pull ${{ secrets.DOCKERHUB_USERNAME }}/callsure-ai-backend:${{ github.sha }}
               docker stop callsurea-ai-backend || true
               docker rm callsurea-ai-backend || true
-              docker run -d -p 8080:8080 --name callsurea-ai-backend ${{ secrets.DOCKERHUB_USERNAME }}/callsure-ai-backend:${{ github.sha }}
+              docker run -d \
+                -p 8080:8080 \
+                --name callsurea-ai-backend \
+                --env-file .env \
+                ${{ secrets.DOCKERHUB_USERNAME }}/callsure-ai-backend:${{ github.sha }}
