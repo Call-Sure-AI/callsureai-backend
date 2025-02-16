@@ -37,18 +37,18 @@ jobs:
         - name: Configure Docker credentials on EC2
           uses: appleboy/ssh-action@master
           with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USERNAME }}
-            key: ${{ secrets.EC2_SSH_KEY }}
+            host: ${{ secrets.PROD_HOST }}
+            username: ${{ secrets.PROD_USERNAME }}
+            key: ${{ secrets.PROD_SSH_KEY }}
             script: |
               docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
         - name: Deploy to EC2
           uses: appleboy/ssh-action@master
           with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USERNAME }}
-            key: ${{ secrets.EC2_SSH_KEY }}
+            host: ${{ secrets.PROD_HOST }}
+            username: ${{ secrets.PROD_USERNAME }}
+            key: ${{ secrets.PROD_SSH_KEY }}
             script: |
               docker pull ${{ secrets.DOCKERHUB_USERNAME }}/callsure-ai-backend:${{ github.sha }}
               docker stop callsurea-ai-backend || true
