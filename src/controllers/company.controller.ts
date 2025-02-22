@@ -3,14 +3,11 @@ import { PrismaService } from '../lib/prisma';
 import { ZodError } from 'zod';
 import crypto from 'crypto';
 import { createCompanySchema, updateCompanySchema } from '../middleware/validators/company-validator';
+import { ActivityLogger } from '../utils/activity-logger';
 
 export class CompanyController {
   static async getAllForUser(req: Request, res: Response) {
     try {
-      // const userId = req.user?.id;
-      // if (!userId) {
-      //   return res.status(401).json({ error: 'Unauthorized' });
-      // }
       const userId = req.params.user_id;
 
       const prisma = await PrismaService.getInstance();
@@ -123,6 +120,22 @@ export class CompanyController {
         data
       });
 
+      try {
+        await ActivityLogger.log({
+          user_id: userId,
+          action: 'CREATE',
+          entity_type: 'COMPANY',
+          entity_id: company.id,
+          metadata: {
+            name: company.name,
+            business_name: company.business_name,
+            email: company.email
+          }
+        });
+      } catch (error) {
+        console.error('Failed to log company creation activity:', error);
+      }
+
       return res.status(201).json(company);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -161,6 +174,21 @@ export class CompanyController {
             updated_at: new Date()
           }
         });
+
+        try {
+          await ActivityLogger.log({
+            user_id: user_id,
+            action: 'UPDATE',
+            entity_type: 'COMPANY',
+            entity_id: existingCompany.id,
+            metadata: {
+              updated_fields: validatedData
+            }
+          });
+        } catch (error) {
+          console.error('Failed to log company update activity:', error);
+        }
+
         return res.status(200).json(updatedCompany);
       } else {
         // Create new company
@@ -174,6 +202,23 @@ export class CompanyController {
             updated_at: new Date()
           }
         });
+
+        try {
+          await ActivityLogger.log({
+            user_id: user_id,
+            action: 'CREATE',
+            entity_type: 'COMPANY',
+            entity_id: newCompany.id,
+            metadata: {
+              name: newCompany.name,
+              business_name: newCompany.business_name,
+              email: newCompany.email
+            }
+          });
+        } catch (error) {
+          console.error('Failed to log company creation activity:', error);
+        }
+
         return res.status(201).json(newCompany);
       }
     } catch (error: any) {
@@ -217,6 +262,20 @@ export class CompanyController {
         }
       });
 
+      try {
+        await ActivityLogger.log({
+          user_id: userId,
+          action: 'UPDATE',
+          entity_type: 'COMPANY',
+          entity_id: id,
+          metadata: {
+            updated_fields: validatedData
+          }
+        });
+      } catch (error) {
+        console.error('Failed to log company update activity:', error);
+      }
+
       return res.status(200).json(updatedCompany);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -254,6 +313,20 @@ export class CompanyController {
         where: { id }
       });
 
+      try {
+        await ActivityLogger.log({
+          user_id: userId,
+          action: 'DELETE',
+          entity_type: 'COMPANY',
+          entity_id: id,
+          metadata: {
+            company_name: company.name
+          }
+        });
+      } catch (error) {
+        console.error('Failed to log company deletion activity:', error);
+      }
+
       return res.status(204).send();
     } catch (error) {
       console.error('Error deleting company:', error);
@@ -287,6 +360,16 @@ export class CompanyController {
         data: {
           api_key: newApiKey,
           updated_at: new Date()
+        }
+      });
+
+      await ActivityLogger.log({
+        user_id: userId,
+        action: 'REGENERATE_API_KEY',
+        entity_type: 'COMPANY',
+        entity_id: id,
+        metadata: {
+          company_name: company.name
         }
       });
 

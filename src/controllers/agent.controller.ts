@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaService } from '../lib/prisma';
 import { ZodError } from 'zod';
 import { createAgentSchema, updateAgentSchema } from '../middleware/validators/agent-validator';
+import { ActivityLogger } from '../utils/activity-logger';
 
 export class AgentController {
     // Get all agents
@@ -87,6 +88,22 @@ export class AgentController {
                 data
             });
 
+            try {
+                await ActivityLogger.log({
+                    user_id: validatedData.user_id,
+                    action: 'CREATE',
+                    entity_type: 'AGENT',
+                    entity_id: agent.id,
+                    metadata: {
+                        name: agent.name,
+                        type: agent.type,
+                        company_id: agent.company_id
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to log agent creation activity:', error);
+            }
+
             return res.status(201).json(agent);
         } catch (error) {
             if (error instanceof ZodError) {
@@ -123,6 +140,20 @@ export class AgentController {
                 data
             });
 
+            try {
+                await ActivityLogger.log({
+                    user_id: req.user.id,
+                    action: 'UPDATE',
+                    entity_type: 'AGENT',
+                    entity_id: agent.id,
+                    metadata: {
+                        updated_fields: validatedData
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to log agent update activity:', error);
+            }
+
             return res.status(200).json(agent);
         } catch (error: any) {
             if (error instanceof ZodError) {
@@ -142,11 +173,25 @@ export class AgentController {
             const { id } = req.params;
             const prisma = await PrismaService.getInstance();
 
-            await prisma.agent.delete({
+            const checkAgent = await prisma.agent.delete({
                 where: { id }
             });
 
-            return res.status(204).send();
+            try {
+                await ActivityLogger.log({
+                    user_id: req.user.id,
+                    action: 'DELETE',
+                    entity_type: 'AGENT',
+                    entity_id: id,
+                    metadata: {
+                        agent_name: checkAgent.name
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to log agent deletion activity:', error);
+            }
+
+            return res.status(204).json(checkAgent);
         } catch (error: any) {
             if (error.code === 'P2025') {
                 return res.status(404).json({ error: 'Agent not found' });

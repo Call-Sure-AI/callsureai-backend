@@ -19,6 +19,7 @@ model User {
   sessions      Session[]
   agents        Agent[]
   companies    Company[]
+  activities    Activity[]
 }
 
 model Account {
@@ -133,4 +134,20 @@ model Call {
   @@index([company_id], map: "idx_calls_company_id")
   @@index([created_at], map: "idx_calls_created_at")
   @@index([status], map: "idx_calls_status")
+}
+
+model Activity {
+  id          String    @id @default(uuid())
+  user_id     String    @db.VarChar(255)
+  action      String    @db.VarChar(255)
+  entity_type String    @db.VarChar(255)
+  entity_id   String    @db.VarChar(255)
+  metadata    Json?     @db.Json
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([entity_type, entity_id])
+  @@index([created_at])
 }
