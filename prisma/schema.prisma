@@ -73,6 +73,19 @@ model Agent {
   created_at           DateTime?       @db.Timestamp(6)
   updated_at           DateTime?       @db.Timestamp(6)
   template_id          String?         @db.VarChar(255)
+
+  knowledge_base_ids    String[]        @default([])
+  database_integration_ids String[]     @default([])
+  search_config         Json?           @default("{\"score_threshold\": 0.7, \"limit\": 5, \"include_metadata\": true}")
+  max_response_tokens   Int?            @default(200)
+  temperature           Float?          @default(0.7)
+  total_interactions    Int?            @default(0)
+  average_confidence    Float?          @default(0.0)
+  success_rate          Float?          @default(0.0)
+  average_response_time Float?          @default(0.0)
+  image_processing_enabled Boolean?     @default(false)
+  image_processing_config Json?         @default("{\"max_images\": 1000, \"confidence_threshold\": 0.7, \"enable_auto_description\": true}")
+  
   companies            Company?      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   user                User?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   conversations        Conversation[]
@@ -95,6 +108,16 @@ model Company {
   created_at       DateTime?       @db.Timestamp(6)
   updated_at       DateTime?       @db.Timestamp(6)
   settings         Json?           @db.Json
+
+  business_type    String?         @db.VarChar(100)
+  active           Boolean?        @default(true)
+  qdrant_collection_name String?   @unique
+  vector_dimension Int?            @default(1536)
+  total_conversations Int?         @default(0)
+  average_response_time Float?     @default(0.0)
+  image_storage_limit Int?         @default(10737418)
+  current_image_storage Int?       @default(0)
+  image_config     Json?           @default("{\"enable_auto_tagging\": true, \"enable_explicit_content_detection\": true, \"retention_period_days\": 365, \"max_image_size\": 10485760, \"supported_formats\": [\"image/jpeg\", \"image/png\", \"image/gif\"]}")
 
   user             User?            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
