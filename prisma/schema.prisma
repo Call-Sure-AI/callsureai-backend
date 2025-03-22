@@ -18,7 +18,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   agents        Agent[]
-  companies    Company[]
+  companies     Company[]
   activities    Activity[]
 }
 
@@ -69,7 +69,7 @@ model Agent {
   additional_context   Json?           @db.Json
   advanced_settings    Json?           @db.Json
   confidence_threshold Float?
-  files                String[]       @db.VarChar(255)
+  files                String[]        @db.VarChar(255)
   created_at           DateTime?       @db.Timestamp(6)
   updated_at           DateTime?       @db.Timestamp(6)
   template_id          String?         @db.VarChar(255)
@@ -86,8 +86,8 @@ model Agent {
   image_processing_enabled Boolean?     @default(false)
   image_processing_config Json?         @default("{\"max_images\": 1000, \"confidence_threshold\": 0.7, \"enable_auto_description\": true}")
   
-  companies            Company?      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user                User?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies            Company?      @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user                User?          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   conversations        Conversation[]
 
   @@index([user_id], map: "idx_agents_user_id")
@@ -100,10 +100,10 @@ model Company {
   business_name    String          @db.VarChar(255)
   email            String          @unique
   address          String          @db.VarChar(255)
-  website          String?          @db.VarChar(255)
+  website          String?         @db.VarChar(255)
   logo             String?         @db.VarChar(255)
-  prompt_templates Json?            @default("{}")
-  api_key          String?          @unique @db.VarChar(255)
+  prompt_templates Json?           @default("{}")
+  api_key          String?         @unique @db.VarChar(255)
   phone_number     String?         @unique @db.VarChar(20)
   created_at       DateTime?       @db.Timestamp(6)
   updated_at       DateTime?       @db.Timestamp(6)
@@ -119,7 +119,7 @@ model Company {
   current_image_storage Int?       @default(0)
   image_config     Json?           @default("{\"enable_auto_tagging\": true, \"enable_explicit_content_detection\": true, \"retention_period_days\": 365, \"max_image_size\": 10485760, \"supported_formats\": [\"image/jpeg\", \"image/png\", \"image/gif\"]}")
 
-  user             User?            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user             User?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   agents           Agent[]
   calls            Call[]
@@ -137,8 +137,8 @@ model Conversation {
   created_at       DateTime?  @db.Timestamp(6)
   updated_at       DateTime?  @db.Timestamp(6)
 
-  companies        Company? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  agents           Agent?    @relation(fields: [current_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies        Company?   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  agents           Agent?     @relation(fields: [current_agent_id], references: [id], onDelete: Cascade)
 }
 
 model Call {
@@ -152,7 +152,7 @@ model Call {
   recording_url String?    @db.VarChar(255)
   created_at    DateTime?  @default(now()) @db.Timestamp(6)
   updated_at    DateTime?  @default(now()) @db.Timestamp(6)
-  companies     Company? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies     Company?   @relation(fields: [company_id], references: [id], onDelete: Cascade)
 
   @@index([company_id], map: "idx_calls_company_id")
   @@index([created_at], map: "idx_calls_created_at")
