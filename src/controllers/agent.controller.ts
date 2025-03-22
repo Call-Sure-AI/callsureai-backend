@@ -77,17 +77,13 @@ export class AgentController {
         try {
             const validatedData = createAgentSchema.parse(req.body);
             const prisma = await PrismaService.getInstance();
-
-            const data = {
-                ...validatedData,
-                created_at: new Date(),
-                updated_at: new Date()
-            } as any;
-
+    
+            // Don't manually set created_at and updated_at
+            // Prisma will handle these automatically
             const agent = await prisma.agent.create({
-                data
+                data: validatedData
             });
-
+    
             try {
                 await ActivityLogger.log({
                     user_id: validatedData.user_id,
@@ -103,7 +99,7 @@ export class AgentController {
             } catch (error) {
                 console.error('Failed to log agent creation activity:', error);
             }
-
+    
             return res.status(201).json(agent);
         } catch (error) {
             if (error instanceof ZodError) {
@@ -120,26 +116,22 @@ export class AgentController {
             const { id } = req.params;
             const validatedData = updateAgentSchema.parse(req.body);
             const prisma = await PrismaService.getInstance();
-
+    
             const checkAgent = await prisma.agent.findUnique({
                 where: { id },
             });
-
+    
             if (!checkAgent) {
                 return res.status(404).json({ error: 'Agent not found' });
             }
-
-            const data = {
-                ...checkAgent,
-                ...validatedData,
-                updated_at: new Date()
-            }
-
+    
+            // Don't spread the entire checkAgent object
+            // Only use the validated data for the update
             const agent = await prisma.agent.update({
                 where: { id },
-                data
+                data: validatedData // Prisma will handle updated_at automatically
             });
-
+    
             try {
                 await ActivityLogger.log({
                     user_id: req.user.id,
@@ -153,7 +145,7 @@ export class AgentController {
             } catch (error) {
                 console.error('Failed to log agent update activity:', error);
             }
-
+    
             return res.status(200).json(agent);
         } catch (error: any) {
             if (error instanceof ZodError) {
