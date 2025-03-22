@@ -68,62 +68,71 @@ model Agent {
   prompt               String
   additional_context   Json?           @db.Json
   advanced_settings    Json?           @db.Json
-  confidence_threshold Float?
-  files                String[]        @db.VarChar(255)
-  created_at           DateTime?       @db.Timestamp(6)
-  updated_at           DateTime?       @db.Timestamp(6)
+  confidence_threshold Float?          @default(0.7)
+  files                String[]        @default([]) @db.VarChar(255)
+  created_at           DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?       @default(now()) @updatedAt @db.Timestamp(6)
   template_id          String?         @db.VarChar(255)
 
-  knowledge_base_ids    String[]        @default([])
-  database_integration_ids String[]     @default([])
-  search_config         Json?           @default("{\"score_threshold\": 0.7, \"limit\": 5, \"include_metadata\": true}")
-  max_response_tokens   Int?            @default(200)
-  temperature           Float?          @default(0.7)
-  total_interactions    Int?            @default(0)
-  average_confidence    Float?          @default(0.0)
-  success_rate          Float?          @default(0.0)
-  average_response_time Float?          @default(0.0)
-  image_processing_enabled Boolean?     @default(false)
-  image_processing_config Json?         @default("{\"max_images\": 1000, \"confidence_threshold\": 0.7, \"enable_auto_description\": true}")
+  knowledge_base_ids        String[]    @default([])
+  database_integration_ids  String[]    @default([])
+  search_config             Json?       @default("{\"score_threshold\": 0.7, \"limit\": 5, \"include_metadata\": true}")
+  max_response_tokens       Int?        @default(200)
+  temperature               Float?      @default(0.7)
+  total_interactions        Int?        @default(0)
+  average_confidence        Float?      @default(0.0)
+  success_rate              Float?      @default(0.0)
+  average_response_time     Float?      @default(0.0)
+  image_processing_enabled  Boolean?    @default(false)
+  image_processing_config   Json?       @default("{\"max_images\": 1000, \"confidence_threshold\": 0.7, \"enable_auto_description\": true}")
   
-  companies            Company?      @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  user                User?          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  conversations        Conversation[]
+  companies                Company?     @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user                     User?        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  conversations            Conversation[]
+  documents                Document[]
+  agentInteractions        AgentInteraction[]    @relation("AgentToInteraction")
+  previousAgentInteractions AgentInteraction[]   @relation("PreviousAgentToInteraction")
+  imageProcessingJobs      ImageProcessingJob[]
 
   @@index([user_id], map: "idx_agents_user_id")
 }
 
 model Company {
-  id               String          @id @default(uuid())
-  user_id          String          @db.VarChar(255)
-  name             String          @db.VarChar(255)
-  business_name    String          @db.VarChar(255)
-  email            String          @unique
-  address          String          @db.VarChar(255)
-  website          String?         @db.VarChar(255)
-  logo             String?         @db.VarChar(255)
-  prompt_templates Json?           @default("{}")
-  api_key          String?         @unique @db.VarChar(255)
-  phone_number     String?         @unique @db.VarChar(20)
-  created_at       DateTime?       @db.Timestamp(6)
-  updated_at       DateTime?       @db.Timestamp(6)
-  settings         Json?           @db.Json
+  id                    String          @id @default(uuid())
+  user_id               String          @db.VarChar(255)
+  name                  String          @db.VarChar(255)
+  business_name         String          @db.VarChar(255)
+  email                 String          @unique
+  address               String          @db.VarChar(255)
+  website               String?         @db.VarChar(255)
+  logo                  String?         @db.VarChar(255)
+  prompt_templates      Json?           @default("{}")
+  api_key               String?         @unique @db.VarChar(255)
+  phone_number          String?         @unique @db.VarChar(20)
+  created_at            DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?       @default(now()) @updatedAt @db.Timestamp(6)
+  settings              Json?           @db.Json
 
-  business_type    String?         @db.VarChar(100)
-  active           Boolean?        @default(true)
-  qdrant_collection_name String?   @unique
-  vector_dimension Int?            @default(1536)
-  total_conversations Int?         @default(0)
-  average_response_time Float?     @default(0.0)
-  image_storage_limit Int?         @default(10737418)
-  current_image_storage Int?       @default(0)
-  image_config     Json?           @default("{\"enable_auto_tagging\": true, \"enable_explicit_content_detection\": true, \"retention_period_days\": 365, \"max_image_size\": 10485760, \"supported_formats\": [\"image/jpeg\", \"image/png\", \"image/gif\"]}")
+  business_type         String?         @db.VarChar(100)
+  active                Boolean?        @default(true)
+  qdrant_collection_name String?        @unique
+  vector_dimension      Int?            @default(1536)
+  total_conversations   Int?            @default(0)
+  average_response_time Float?          @default(0.0)
+  image_storage_limit   Int?            @default(10737418240)
+  current_image_storage Int?            @default(0)
+  image_config          Json?           @default("{\"enable_auto_tagging\": true, \"enable_explicit_content_detection\": true, \"retention_period_days\": 365, \"max_image_size\": 10485760, \"supported_formats\": [\"image/jpeg\", \"image/png\", \"image/gif\"]}")
 
-  user             User?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                  User?           @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  agents           Agent[]
-  calls            Call[]
-  conversations    Conversation[]
+  agents                Agent[]
+  calls                 Call[]
+  conversations         Conversation[]
+  documents             Document[]
+  databaseIntegrations  DatabaseIntegration[]
+  imageProcessingJobs   ImageProcessingJob[]
+
   @@index([user_id], map: "idx_companies_user_id")
 }
 
@@ -132,27 +141,41 @@ model Conversation {
   customer_id      String     @db.VarChar(255)
   company_id       String?
   current_agent_id String?
-  history          Json?
+  history          Json?      @default("[]")
   meta_data        Json?      @db.Json
-  created_at       DateTime?  @db.Timestamp(6)
-  updated_at       DateTime?  @db.Timestamp(6)
+  duration         Float?     @default(0.0)
+  messages_count   Int?       @default(0)
+  sentiment_score  Float?
+  status           String?    @default("active") @db.VarChar(50)
+  ended_by         String?    @db.VarChar(50)
+  ended_at         DateTime?  @db.Timestamp(6)
+  created_at       DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?  @default(now()) @updatedAt @db.Timestamp(6)
 
   companies        Company?   @relation(fields: [company_id], references: [id], onDelete: Cascade)
   agents           Agent?     @relation(fields: [current_agent_id], references: [id], onDelete: Cascade)
+  agentInteractions AgentInteraction[]
 }
 
 model Call {
-  id            Int        @id @default(autoincrement())
-  call_sid      String?    @unique @db.VarChar(255)
+  id            Int         @id @default(autoincrement())
+  call_sid      String?     @unique @db.VarChar(255)
   company_id    String?
-  from_number   String     @db.VarChar(20)
-  to_number     String     @db.VarChar(20)
-  status        String     @db.VarChar(50)
-  duration      Int?
-  recording_url String?    @db.VarChar(255)
-  created_at    DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
-  companies     Company?   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  conversation_id String?
+  from_number   String      @db.VarChar(20)
+  to_number     String      @db.VarChar(20)
+  status        String      @db.VarChar(50)
+  duration      Float?
+  recording_url String?     @db.VarChar(255)
+  transcription String?     @db.Text
+  cost          Float?      @default(0.0)
+  quality_score Float?
+  answered_at   DateTime?   @db.Timestamp(6)
+  ended_at      DateTime?   @db.Timestamp(6)
+  created_at    DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?   @default(now()) @updatedAt @db.Timestamp(6)
+  
+  companies     Company?    @relation(fields: [company_id], references: [id], onDelete: Cascade)
 
   @@index([company_id], map: "idx_calls_company_id")
   @@index([created_at], map: "idx_calls_created_at")
@@ -173,4 +196,113 @@ model Activity {
   @@index([user_id])
   @@index([entity_type, entity_id])
   @@index([created_at])
+}
+
+model Document {
+  id               String    @id @default(uuid())
+  company_id       String?
+  agent_id         String?
+  name             String    @db.VarChar(255)
+  type             String
+  content          String    @db.Text
+
+  file_type        String?   @db.VarChar(50)
+  file_size        Int?
+  original_filename String?  @db.VarChar(255)
+  width            Int?
+  height           Int?
+  image_format     String?   @db.VarChar(20)
+  
+  is_image         Boolean?  @default(false)
+  user_description String?   @db.Text
+  auto_description String?   @db.Text
+  
+  embedding_id     String?   @db.VarChar(255)
+  last_embedded    DateTime?
+  chunk_count      Int?      @default(0)
+  
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+
+  company          Company?  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  agent            Agent?    @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  imageProcessingJobs ImageProcessingJob[]
+
+  @@index([company_id])
+  @@index([agent_id])
+}
+
+model AgentInteraction {
+  id               String    @id @default(uuid())
+  agent_id         String
+  conversation_id  String
+  
+  query            String    @db.Text
+  response         String    @db.Text
+  confidence_score Float
+  
+  response_time    Float
+  tokens_used      Int?
+  was_successful   Boolean?
+  
+  previous_agent_id String?
+  context_window   Json?
+  
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  
+  agent            Agent     @relation("AgentToInteraction", fields: [agent_id], references: [id], onDelete: Cascade)
+  conversation     Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  previousAgent    Agent?    @relation("PreviousAgentToInteraction", fields: [previous_agent_id], references: [id])
+  
+  @@index([agent_id])
+  @@index([conversation_id])
+}
+
+model DatabaseIntegration {
+  id               String    @id @default(uuid())
+  company_id       String
+  name             String    @db.VarChar(255)
+  type             String
+  
+  connection_details Json     @db.Json
+  schema_mapping   Json?     @default("{}") @db.Json
+  included_tables  String[]  @default([])
+  excluded_tables  String[]  @default([])
+  
+  sync_frequency   String?   @default("daily") @db.VarChar(50)
+  last_sync        DateTime?
+  is_active        Boolean?  @default(true)
+  
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  
+  company          Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  
+  @@index([company_id])
+}
+
+model ImageProcessingJob {
+  id               String    @id @default(uuid())
+  document_id      String
+  company_id       String
+  agent_id         String
+  
+  status           String    @default("pending") @db.VarChar(50)
+  error_message    String?   @db.Text
+  
+  processing_config Json?    @db.Json
+  results          Json?     @db.Json
+  
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  completed_at     DateTime?
+  
+  document         Document  @relation(fields: [document_id], references: [id])
+  company          Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  agent            Agent     @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  
+  @@index([document_id])
+  @@index([company_id])
+  @@index([agent_id])
+  @@index([status])
 }
