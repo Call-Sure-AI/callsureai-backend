@@ -203,6 +203,7 @@ export class CompanyController {
           }
         });
 
+
         try {
           await ActivityLogger.log({
             user_id: user_id,
