@@ -5,7 +5,8 @@ export const createAgentSchema = z.object({
     name: z.string().min(1).max(255),
     type: z.string().min(1).max(255),
     is_active: z.boolean().default(true),
-    company_id: z.string().nullable().optional(),
+    // This is the key change - making company_id required, not nullable
+    company_id: z.string(),
     prompt: z.string(),
     additional_context: z.any().optional().nullable(),
     advanced_settings: z.any().optional().nullable(),

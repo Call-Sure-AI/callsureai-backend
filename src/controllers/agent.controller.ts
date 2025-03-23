@@ -73,42 +73,88 @@ export class AgentController {
     }
 
     // Create new agent
+    // Create new agent
     static async create(req: Request, res: Response) {
         try {
-            const validatedData = createAgentSchema.parse(req.body);
-            const prisma = await PrismaService.getInstance();
-    
-            // Don't manually set created_at and updated_at
-            // Prisma will handle these automatically
-            const agent = await prisma.agent.create({
-                data: validatedData
-            });
-    
+          // Add logging for incoming request
+          console.log("Agent creation request received:", JSON.stringify(req.body, null, 2));
+          
+          // Validate the request data
+          const validatedData = createAgentSchema.parse(req.body);
+          
+          // Ensure company_id is provided
+          if (!validatedData.company_id) {
+            console.error("Missing company_id in agent creation request");
+            return res.status(400).json({ error: 'company_id is required' });
+          }
+          
+          const prisma = await PrismaService.getInstance();
+          
+          // Check for existing agent with same name and company
+          const existingAgent = await prisma.agent.findFirst({
+            where: {
+              name: validatedData.name,
+              company_id: validatedData.company_id
+            }
+          });
+          
+          // If agent already exists, return it instead of creating a duplicate
+          if (existingAgent) {
+            console.log(`Agent already exists with name "${validatedData.name}" for company ID "${validatedData.company_id}"`);
+            
             try {
-                await ActivityLogger.log({
-                    user_id: validatedData.user_id,
-                    action: 'CREATE',
-                    entity_type: 'AGENT',
-                    entity_id: agent.id,
-                    metadata: {
-                        name: agent.name,
-                        type: agent.type,
-                        company_id: agent.company_id
-                    }
-                });
-            } catch (error) {
-                console.error('Failed to log agent creation activity:', error);
+              await ActivityLogger.log({
+                user_id: validatedData.user_id,
+                action: 'DUPLICATE_ATTEMPT',
+                entity_type: 'AGENT',
+                entity_id: existingAgent.id,
+                metadata: {
+                  name: existingAgent.name,
+                  type: existingAgent.type,
+                  company_id: existingAgent.company_id
+                }
+              });
+            } catch (logError) {
+              console.error('Failed to log duplicate agent attempt:', logError);
             }
-    
-            return res.status(201).json(agent);
+            
+            return res.status(200).json(existingAgent);
+          }
+          
+          // Create the agent
+          const agent = await prisma.agent.create({
+            data: validatedData
+          });
+          
+          console.log(`Successfully created agent with ID "${agent.id}" for company ID "${agent.company_id}"`);
+          
+          // Log the creation activity
+          try {
+            await ActivityLogger.log({
+              user_id: validatedData.user_id,
+              action: 'CREATE',
+              entity_type: 'AGENT',
+              entity_id: agent.id,
+              metadata: {
+                name: agent.name,
+                type: agent.type,
+                company_id: agent.company_id
+              }
+            });
+          } catch (logError) {
+            console.error('Failed to log agent creation activity:', logError);
+          }
+          
+          return res.status(201).json(agent);
         } catch (error) {
-            if (error instanceof ZodError) {
-                return res.status(400).json({ error: error.issues });
-            }
-            console.error('Error creating agent:', error);
-            return res.status(500).json({ error: 'Internal server error' });
+          if (error instanceof ZodError) {
+            console.error('Validation error creating agent:', JSON.stringify(error.issues, null, 2));
+            return res.status(400).json({ error: error.issues });
+          }
+          console.error('Error creating agent:', error);
+          return res.status(500).json({ error: 'Internal server error' });
         }
-    }
+      }
 
     // Update agent
     static async update(req: Request, res: Response) {
