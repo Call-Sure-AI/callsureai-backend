@@ -125,6 +125,9 @@ export class AuthController {
                 httpOnly: false
             });
 
+            console.log('Response headers:', res.getHeaders());
+            console.log('Set-Cookie header:', res.getHeader('Set-Cookie'));
+
             return res.status(200).json({
                 token,
                 user: {
