@@ -1,3 +1,4 @@
+// src/middleware/validators/company-validator.ts
 import { z } from 'zod';
 
 export type CompanySettings = {

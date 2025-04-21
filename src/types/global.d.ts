@@ -8,4 +8,9 @@ declare global {
             prisma: PrismaClient | undefined;
         }
     }
+    
+    // Add this interface declaration for BigInt
+    interface BigInt {
+        toJSON(): string;
+    }
 }

@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -120,8 +121,10 @@ model Company {
   vector_dimension      Int?            @default(1536)
   total_conversations   Int?            @default(0)
   average_response_time Float?          @default(0.0)
-  image_storage_limit   Int?            @default(10737418240)
-  current_image_storage Int?            @default(0)
+  // Changed from Int? to BigInt? to handle large values
+  image_storage_limit   BigInt?         @default(10737418240)
+  // Changed from Int? to BigInt? to handle large values
+  current_image_storage BigInt?         @default(0)
   image_config          Json?           @default("{\"enable_auto_tagging\": true, \"enable_explicit_content_detection\": true, \"retention_period_days\": 365, \"max_image_size\": 10485760, \"supported_formats\": [\"image/jpeg\", \"image/png\", \"image/gif\"]}")
 
   user                  User?           @relation(fields: [user_id], references: [id], onDelete: Cascade)

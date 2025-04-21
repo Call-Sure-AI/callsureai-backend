@@ -21,9 +21,9 @@ ADD COLUMN     "total_interactions" INTEGER DEFAULT 0;
 ALTER TABLE "Company" ADD COLUMN     "active" BOOLEAN DEFAULT true,
 ADD COLUMN     "average_response_time" DOUBLE PRECISION DEFAULT 0.0,
 ADD COLUMN     "business_type" VARCHAR(100),
-ADD COLUMN     "current_image_storage" INTEGER DEFAULT 0,
+ADD COLUMN     "current_image_storage" BIGINT DEFAULT 0,
 ADD COLUMN     "image_config" JSONB DEFAULT '{"enable_auto_tagging": true, "enable_explicit_content_detection": true, "retention_period_days": 365, "max_image_size": 10485760, "supported_formats": ["image/jpeg", "image/png", "image/gif"]}',
-ADD COLUMN     "image_storage_limit" INTEGER DEFAULT 10737418240,
+ADD COLUMN     "image_storage_limit" BIGINT DEFAULT 10737418240,
 ADD COLUMN     "qdrant_collection_name" TEXT,
 ADD COLUMN     "total_conversations" INTEGER DEFAULT 0,
 ADD COLUMN     "vector_dimension" INTEGER DEFAULT 1536;
