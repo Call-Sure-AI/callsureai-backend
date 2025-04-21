@@ -13,6 +13,14 @@ const googleClient = new OAuth2Client(
     'postmessage'
 );
 
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/'
+};
+
 export class AuthController {
     static async googleAuth(req: Request, res: Response) {
         try {
@@ -105,6 +113,17 @@ export class AuthController {
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '7d' }
             );
+
+            res.cookie('token', token, COOKIE_OPTIONS);
+            res.cookie('user', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                image: user.image
+            }), {
+                ...COOKIE_OPTIONS,
+                httpOnly: false
+            });
 
             return res.status(200).json({
                 token,
@@ -216,6 +235,16 @@ export class AuthController {
                 { expiresIn: '1d' }
             )
 
+            res.cookie('token', token, COOKIE_OPTIONS);
+            res.cookie('user', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                name: user.name
+            }), {
+                ...COOKIE_OPTIONS,
+                httpOnly: false
+            });
+
             return res.status(201).json({
                 user: {
                     id: user.id,
@@ -265,6 +294,16 @@ export class AuthController {
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '1d' }
             )
+
+            res.cookie('token', token, COOKIE_OPTIONS);
+            res.cookie('user', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                name: user.name
+            }), {
+                ...COOKIE_OPTIONS,
+                httpOnly: false
+            });
 
             return res.status(200).json({
                 user: {
