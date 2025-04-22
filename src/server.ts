@@ -40,6 +40,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
     exposedHeaders: ['Set-Cookie']
 }));
+
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cookieParser());
 app.use(express.json({ limit: '20mb' }));
