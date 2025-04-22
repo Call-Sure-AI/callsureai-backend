@@ -18,23 +18,21 @@ BigInt.prototype.toJSON = function () {
 };
 
 // Middleware
-const allowedOrigins = ['http://localhost:3000', 'https://callsure.ai', 'https://www.callsure.ai'];
+const allowedOrigins = ['http://localhost:3000', 'https://callsure.ai', 'https://www.callsure.ai', 'https://callsure-ai-frontend.vercel.app/', 'https://www.callsure-ai-frontend.vercel.app/'];
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) {
             return callback(null, true);
         }
-        
-        // Check if the origin is in the allowedOrigins list
+
         if (allowedOrigins.indexOf(origin) !== -1) {
             return callback(null, true);
         }
-        
-        // Check if origin is a subdomain of callsure.ai
+
         if (origin.match(/^https:\/\/([a-zA-Z0-9-]+\.)*callsure\.ai$/)) {
             return callback(null, true);
         }
-        
+
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
