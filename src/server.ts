@@ -18,7 +18,7 @@ BigInt.prototype.toJSON = function () {
 };
 
 // Middleware
-const allowedOrigins = ['http://localhost:3000', 'https://callsure.ai', 'https://www.callsure.ai', 'https://callsure-ai-frontend.vercel.app/', 'https://www.callsure-ai-frontend.vercel.app/'];
+const allowedOrigins = ['http://localhost:3000', 'https://callsure.ai', 'https://www.callsure.ai', 'https://callsure-ai-frontend.vercel.app', 'https://www.callsure-ai-frontend.vercel.app', 'https://beta.callsure.ai'];
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) {
