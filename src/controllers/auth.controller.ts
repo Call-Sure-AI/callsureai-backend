@@ -301,6 +301,8 @@ export class AuthController {
                 },
             })
 
+            console.log(`User`, user);
+
             if (!user || !user.accounts[0]) {
                 return res.status(401).json({ error: 'Invalid credentials' })
             }
@@ -310,6 +312,8 @@ export class AuthController {
                 password,
                 user.accounts[0].access_token || ''
             )
+
+            console.log(`Is valid password`, isValidPassword);
 
             if (!isValidPassword) {
                 return res.status(401).json({ error: 'Invalid credentials' })

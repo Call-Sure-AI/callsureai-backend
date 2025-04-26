@@ -43,6 +43,11 @@ export class CompanyController {
       const { id } = req.user;
 
       const prisma = await PrismaService.getInstance();
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, companyMemberships: true }
+      });
+
       const company = await prisma.company.findFirst({
         where: {
           user_id: id
@@ -65,6 +70,34 @@ export class CompanyController {
       });
 
       if (!company) {
+        if (user?.companyMemberships.length) {
+          const company = await prisma.company.findFirst({
+            where: {
+              id: user.companyMemberships[0].company_id
+            },
+            include: {
+              agents: true,
+              calls: {
+                orderBy: {
+                  created_at: 'desc'
+                },
+                take: 5
+              },
+              conversations: {
+                orderBy: {
+                  created_at: 'desc'
+                },
+                take: 5
+              }
+            }
+          });
+
+          if (!company) {
+            return res.status(404).json({ error: 'Company not found' });
+          }
+
+          return res.status(200).json(company);
+        }
         return res.status(404).json({ error: 'Company not found' });
       }
 
