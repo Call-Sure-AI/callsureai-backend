@@ -17,5 +17,9 @@ export const signInSchema = z.object({
     password: z.string().min(1, 'Password is required'),
 })
 
+export const emailSchema = z.object({
+    email: z.string().email('Invalid email address'),
+})
+
 export type SignUpInput = z.infer<typeof signUpSchema>
 export type SignInInput = z.infer<typeof signInSchema>

@@ -65,7 +65,7 @@ export class AuthController {
                             provider: 'google'
                         }
                     },
-                    companies: true
+                    ownedCompanies: true
                 }
             });
 
@@ -138,7 +138,7 @@ export class AuthController {
                     image: user.image
                 },
                 newUser,
-                companies: user.companies
+                companies: user.ownedCompanies
             });
 
         } catch (error: any) {
@@ -199,6 +199,29 @@ export class AuthController {
     //         return res.status(500).json({ error: 'Internal server error' })
     //     }
     // }
+
+    static async checkEmail(req: Request, res: Response) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({ error: 'Email is required' });
+            }
+
+            const user = await prisma.user.findUnique({
+                where: { email },
+                select: { id: true }
+            });
+
+            return res.status(200).json({
+                exists: !!user
+            });
+
+        } catch (error) {
+            console.error('Email check error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
 
     static async signUp(req: Request, res: Response) {
         try {
