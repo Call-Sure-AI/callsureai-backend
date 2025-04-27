@@ -56,7 +56,8 @@ export class AuthController {
                             provider: 'google'
                         }
                     },
-                    ownedCompanies: true
+                    ownedCompanies: true,
+                    companyMemberships: true,
                 }
             });
 
@@ -95,12 +96,15 @@ export class AuthController {
                 });
             }
 
+            const role = user.ownedCompanies.length ? 'admin' : user.companyMemberships.length ? user.companyMemberships[0].role : 'member';
+
             // Generate JWT token
             const token = jwt.sign(
                 {
                     id: user.id,
                     email: user.email,
-                    name: user.name
+                    name: user.name,
+                    role,
                 },
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '7d' }
@@ -111,7 +115,8 @@ export class AuthController {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                image: user.image
+                image: user.image,
+                role,
             }));
 
             console.log('Response headers:', res.getHeaders());
@@ -123,7 +128,8 @@ export class AuthController {
                     id: user.id,
                     email: user.email,
                     name: user.name,
-                    image: user.image
+                    image: user.image,
+                    role,
                 },
                 newUser,
                 companies: user.ownedCompanies
@@ -283,6 +289,8 @@ export class AuthController {
                             provider: 'credentials',
                         },
                     },
+                    ownedCompanies: true,
+                    companyMemberships: true,
                 },
             })
 
@@ -304,9 +312,11 @@ export class AuthController {
                 return res.status(401).json({ error: 'Invalid credentials' })
             }
 
+            const role = user.ownedCompanies.length ? 'admin' : user.companyMemberships.length ? user.companyMemberships[0].role : 'member';
+
             // Generate JWT token
             const token = jwt.sign(
-                { id: user.id, email: user.email },
+                { id: user.id, email: user.email, role, image: user.image },
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '1d' }
             )
@@ -315,7 +325,8 @@ export class AuthController {
             res.cookie('user', JSON.stringify({
                 id: user.id,
                 email: user.email,
-                name: user.name
+                name: user.name,
+                role,
             }));
 
             return res.status(200).json({
@@ -323,6 +334,7 @@ export class AuthController {
                     id: user.id,
                     email: user.email,
                     name: user.name,
+                    role,
                 },
                 token,
             })
