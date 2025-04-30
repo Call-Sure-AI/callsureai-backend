@@ -49,7 +49,8 @@ export class InvitationController {
                         token,
                         role: role || existingInvitation.role,
                         expires_at: expiresAt,
-                        updated_at: new Date()
+                        updated_at: new Date(),
+                        status: 'pending' // Reset status if resending
                     }
                 });
             } else {
@@ -59,7 +60,8 @@ export class InvitationController {
                         company_id: companyId,
                         role: role || 'member',
                         token,
-                        expires_at: expiresAt
+                        expires_at: expiresAt,
+                        status: 'pending'
                     }
                 });
             }
@@ -113,6 +115,10 @@ export class InvitationController {
                 return res.status(400).json({ error: 'Invitation has expired' });
             }
 
+            if (invitation.status === 'accepted') {
+                return res.status(400).json({ error: 'Invitation has already been accepted' });
+            }
+
             return res.status(200).json({
                 invitation: {
                     email: invitation.email,
@@ -152,11 +158,15 @@ export class InvitationController {
                 return res.status(400).json({ error: 'Invitation has expired' });
             }
 
+            if (invitation.status === 'accepted') {
+                return res.status(400).json({ error: 'Invitation has already been accepted' });
+            }
+
             let user = await prisma.user.findUnique({
                 where: { email: invitation.email }
             });
 
-            const result = await prisma.$transaction(async (tx) => {
+            const result = await prisma.$transaction(async (tx: any) => {
                 if (!user) {
                     if (!password) {
                         throw new Error('Password is required for new users');
@@ -181,7 +191,6 @@ export class InvitationController {
                     });
                 }
 
-                // Since companies is an array, we need to create this relation
                 const company = await tx.company.findUnique({
                     where: { id: invitation.company_id },
                     select: { id: true }
@@ -189,7 +198,7 @@ export class InvitationController {
 
                 await tx.companyMember.create({
                     data: {
-                        user_id: user.id,
+                        user_id: user?.id,
                         company_id: invitation.company_id,
                         role: invitation.role
                     }
@@ -201,7 +210,7 @@ export class InvitationController {
 
                 await tx.activity.create({
                     data: {
-                        user_id: user.id,
+                        user_id: user?.id,
                         action: 'joined_company',
                         entity_type: 'company',
                         entity_id: invitation.company_id,
@@ -212,9 +221,12 @@ export class InvitationController {
                     }
                 });
 
-                // Delete the invitation
-                await tx.invitation.delete({
-                    where: { id: invitation.id }
+                await tx.invitation.update({
+                    where: { id: invitation.id },
+                    data: {
+                        status: 'accepted',
+                        accepted_at: new Date()
+                    }
                 });
 
                 return user;
@@ -222,7 +234,7 @@ export class InvitationController {
 
             // Generate JWT token
             const signedToken = jwt.sign(
-                { id: result.id, email: result.email, name: result.name },
+                { id: result?.id, email: result?.email, name: result?.name },
                 process.env.JWT_SECRET || 'your-secret-key',
                 { expiresIn: '7d' }
             );
@@ -236,25 +248,22 @@ export class InvitationController {
                 domain: '.callsure.ai'
             };
 
-            res.cookie('token', signedToken, COOKIE_OPTIONS);
+            res.cookie('token', signedToken);
             res.cookie('user', JSON.stringify({
-                id: result.id,
-                email: result.email,
-                name: result.name,
-                image: result.image
-            }), {
-                ...COOKIE_OPTIONS,
-                httpOnly: false
-            });
+                id: result?.id,
+                email: result?.email,
+                name: result?.name,
+                image: result?.image
+            }));
 
             return res.status(200).json({
                 message: 'Invitation accepted successfully',
                 token: signedToken,
                 user: {
-                    id: result.id,
-                    email: result.email,
-                    name: result.name,
-                    image: result.image
+                    id: result?.id,
+                    email: result?.email,
+                    name: result?.name,
+                    image: result?.image
                 }
             });
 
@@ -285,7 +294,6 @@ export class InvitationController {
                 return res.status(403).json({ error: 'Not authorized to view invitations for this company' });
             }
 
-            // Get all pending invitations for the company
             const invitations = await prisma.invitation.findMany({
                 where: {
                     company_id: companyId,
@@ -298,13 +306,14 @@ export class InvitationController {
                 }
             });
 
-            // Map the invitations to include the invitation URL
-            const mappedInvitations = invitations.map(invitation => ({
+            const mappedInvitations = invitations.map((invitation: any) => ({
                 id: invitation.id,
                 email: invitation.email,
                 role: invitation.role,
+                status: invitation.status,
                 expires_at: invitation.expires_at,
                 created_at: invitation.created_at,
+                accepted_at: invitation.accepted_at,
                 invitationUrl: `${process.env.FRONTEND_URL}/invite?token=${invitation.token}`
             }));
 
@@ -318,12 +327,105 @@ export class InvitationController {
         }
     }
 
+    static async listAcceptedInvitations(req: Request, res: Response) {
+        try {
+            const { companyId } = req.params;
+
+            console.log(`Listing accepted invitations for company ${companyId}`);
+
+            const company = await prisma.company.findUnique({
+                where: { id: companyId }
+            });
+
+            if (!company) {
+                return res.status(404).json({ error: 'Company not found' });
+            }
+
+            if (company.user_id !== req.user.id) {
+                return res.status(403).json({ error: 'Not authorized to view invitations for this company' });
+            }
+
+            const invitations = await prisma.invitation.findMany({
+                where: {
+                    company_id: companyId,
+                    status: 'accepted'
+                },
+                orderBy: {
+                    accepted_at: 'desc'
+                }
+            });
+
+            const mappedInvitations = invitations.map((invitation: any) => ({
+                id: invitation.id,
+                email: invitation.email,
+                role: invitation.role,
+                accepted_at: invitation.accepted_at,
+                created_at: invitation.created_at
+            }));
+
+            return res.status(200).json({
+                invitations: mappedInvitations
+            });
+
+        } catch (error) {
+            console.error('List accepted invitations error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    // List expired invitations
+    static async listExpiredInvitations(req: Request, res: Response) {
+        try {
+            const { companyId } = req.params;
+
+            const company = await prisma.company.findUnique({
+                where: { id: companyId }
+            });
+
+            if (!company) {
+                return res.status(404).json({ error: 'Company not found' });
+            }
+
+            if (company.user_id !== req.user.id) {
+                return res.status(403).json({ error: 'Not authorized to view invitations for this company' });
+            }
+
+            const invitations = await prisma.invitation.findMany({
+                where: {
+                    company_id: companyId,
+                    status: 'pending',
+                    expires_at: {
+                        lt: new Date()
+                    }
+                },
+                orderBy: {
+                    created_at: 'desc'
+                }
+            });
+
+            const mappedInvitations = invitations.map((invitation: any) => ({
+                id: invitation.id,
+                email: invitation.email,
+                role: invitation.role,
+                expires_at: invitation.expires_at,
+                created_at: invitation.created_at
+            }));
+
+            return res.status(200).json({
+                invitations: mappedInvitations
+            });
+
+        } catch (error) {
+            console.error('List expired invitations error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
     // Delete an invitation
     static async deleteInvitation(req: Request, res: Response) {
         try {
             const { invitationId } = req.params;
 
-            // Find the invitation
             const invitation = await prisma.invitation.findUnique({
                 where: { id: invitationId },
                 include: {

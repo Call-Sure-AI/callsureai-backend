@@ -161,14 +161,16 @@ model Invitation {
   expires_at       DateTime
   created_at       DateTime  @default(now())
   updated_at       DateTime  @default(now()) @updatedAt
+  accepted_at      DateTime? 
+  status           String    @default("pending") 
   
   company          Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
   
   @@index([token])
   @@index([company_id])
   @@index([email])
+  @@index([status])
 }
-
 model Conversation {
   id                String             @id @default(uuid())
   customer_id       String             @db.VarChar(255)

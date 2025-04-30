@@ -53,4 +53,10 @@ router.post(
     InvitationController.sendInvitationEmail
 );
 
+router.get(
+    '/accepted/:companyId',
+    authMiddleware,
+    InvitationController.listAcceptedInvitations
+);
+
 export default router;
