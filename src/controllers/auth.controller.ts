@@ -393,8 +393,57 @@ export class AuthController {
                 },
             });
 
+            const emailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Your OTP Code</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #162a47 0%, #3362A6 100%); padding: 30px; border-radius: 10px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Callsure AI</h1>
+                </div>
+                
+                <div style="padding: 30px; background: #f9f9f9; border-radius: 0 0 10px 10px;">
+                    <h2 style="color: #162a47; margin-bottom: 20px;">Your Verification Code</h2>
+                    <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                        Use the following code to complete your sign-in process:
+                    </p>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                        <div style="font-size: 32px; font-weight: bold; color: #3362A6; letter-spacing: 5px;">
+                            ${code}
+                        </div>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 14px;">
+                        This code will expire in 10 minutes. If you didn't request this code, please ignore this email.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+                    © ${new Date().getFullYear()} Callsure AI. All rights reserved.
+                </div>
+            </body>
+            </html>
+        `;
+
+            // Prepare email data for EmailController
+            const emailData = {
+                to: email,
+                subject: 'Your Callsure AI Verification Code',
+                html: emailHtml
+            };
+
+            // Create a mock request object for EmailController
+            const emailReq = {
+                body: emailData
+            } as Request;
+
+
             // Send OTP via email
-            await EmailController.sendEmail(req, res);
+            await EmailController.sendEmail(emailReq, res);
 
             return res.status(200).json({ message: 'OTP sent successfully' });
         } catch (error) {

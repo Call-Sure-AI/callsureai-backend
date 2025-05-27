@@ -374,6 +374,17 @@ model TaskQueue {
   @@index([task_type], map: "ix_taskqueue_task_type")
 }
 
+model OTP {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
 enum agenttype {
   base
   sales
