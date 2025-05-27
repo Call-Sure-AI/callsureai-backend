@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  name          String?
-  email         String     @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  accounts      Account[]
-  activities    Activity[]
-  agents        Agent[]
-  ownedCompanies  Company[] @relation("CompanyOwner")
+  id                 String          @id @default(cuid())
+  name               String?
+  email              String          @unique
+  emailVerified      DateTime?
+  image              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  accounts           Account[]
+  activities         Activity[]
+  agents             Agent[]
+  ownedCompanies     Company[]       @relation("CompanyOwner")
   companyMemberships CompanyMember[]
-  sessions      Session[]
+  sessions           Session[]
 }
 
 model Account {
@@ -105,9 +105,8 @@ model CompanyMember {
   role       String   @default("member")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
-  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  company Company @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  company    Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, company_id])
   @@index([user_id])
@@ -138,39 +137,42 @@ model Company {
   qdrant_collection_name String?               @unique
   total_conversations    Int?                  @default(0)
   vector_dimension       Int?                  @default(1536)
+  task_success_rate      Float?
+  average_task_latency   Float?
+  task_count             Int                   @default(0)
   agents                 Agent[]
   calls                  Call[]
-  user       User    @relation("CompanyOwner", fields: [user_id], references: [id], onDelete: Cascade)
-  members    CompanyMember[]
+  user                   User                  @relation("CompanyOwner", fields: [user_id], references: [id], onDelete: Cascade)
+  members                CompanyMember[]
   conversations          Conversation[]
   databaseIntegrations   DatabaseIntegration[]
   documents              Document[]
   imageProcessingJobs    ImageProcessingJob[]
-  PromptTemplate         PromptTemplate[]
   invitations            Invitation[]
+  PromptTemplate         PromptTemplate[]
 
   @@index([user_id], map: "idx_companies_user_id")
 }
 
 model Invitation {
-  id               String    @id @default(uuid())
-  email            String
-  company_id       String
-  role             String    @default("member")
-  token            String    @unique
-  expires_at       DateTime
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @default(now()) @updatedAt
-  accepted_at      DateTime? 
-  status           String    @default("pending") 
-  
-  company          Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  
+  id          String    @id @default(uuid())
+  email       String
+  company_id  String
+  role        String    @default("member")
+  token       String    @unique
+  expires_at  DateTime
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @default(now()) @updatedAt
+  accepted_at DateTime?
+  status      String    @default("pending")
+  company     Company   @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
   @@index([token])
   @@index([company_id])
   @@index([email])
   @@index([status])
 }
+
 model Conversation {
   id                String             @id @default(uuid())
   customer_id       String             @db.VarChar(255)
@@ -186,6 +188,7 @@ model Conversation {
   messages_count    Int?               @default(0)
   sentiment_score   Float?
   status            String?            @default("active") @db.VarChar(50)
+  last_task_id      String?            @db.VarChar
   agentInteractions AgentInteraction[]
   companies         Company?           @relation(fields: [company_id], references: [id], onDelete: Cascade)
   agents            Agent?             @relation(fields: [current_agent_id], references: [id], onDelete: Cascade)
@@ -208,6 +211,7 @@ model Call {
   ended_at        DateTime? @db.Timestamp(6)
   quality_score   Float?
   transcription   String?
+  last_task_id    String?   @db.VarChar
   companies       Company?  @relation(fields: [company_id], references: [id], onDelete: Cascade)
 
   @@index([company_id], map: "idx_calls_company_id")
@@ -275,6 +279,7 @@ model AgentInteraction {
   previous_agent_id String?
   context_window    Json?
   created_at        DateTime     @default(now()) @db.Timestamp(6)
+  last_task_id      String?      @db.VarChar
   agent             Agent        @relation("AgentToInteraction", fields: [agent_id], references: [id], onDelete: Cascade)
   conversation      Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
   previousAgent     Agent?       @relation("PreviousAgentToInteraction", fields: [previous_agent_id], references: [id])
@@ -344,6 +349,29 @@ model PromptTemplate {
   @@index([agent_type], map: "prompt_template_agent_type_idx")
   @@index([category], map: "prompt_template_category_idx")
   @@index([company_id], map: "prompt_template_company_id_idx")
+}
+
+model TaskQueue {
+  id              String    @id @db.VarChar
+  task_type       String    @db.VarChar(50)
+  status          String    @default("pending") @db.VarChar(20)
+  parameters      Json?
+  result          Json?
+  error_message   String?
+  retry_count     Int       @default(0)
+  max_retries     Int       @default(3)
+  next_retry_at   DateTime? @db.Timestamp(6)
+  company_id      String?   @db.VarChar
+  agent_id        String?   @db.VarChar
+  conversation_id String?   @db.VarChar
+  call_id         String?   @db.VarChar
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  started_at      DateTime? @db.Timestamp(6)
+  completed_at    DateTime? @db.Timestamp(6)
+
+  @@index([company_id], map: "ix_taskqueue_company_id")
+  @@index([status, next_retry_at], map: "ix_taskqueue_status_retry")
+  @@index([task_type], map: "ix_taskqueue_task_type")
 }
 
 enum agenttype {

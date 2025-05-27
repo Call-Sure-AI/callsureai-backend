@@ -4,8 +4,10 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { SignInInput, SignUpInput } from '../middleware/validators/auth-validators'
 import { OAuth2Client } from 'google-auth-library'
+import { PrismaService } from '../lib/prisma'
+import { EmailController } from './email.controller'
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 const googleClient = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
@@ -48,7 +50,7 @@ export class AuthController {
             }
 
             // Find or create user
-            let user: any = await prisma.user.findUnique({
+            let user: any = await prismaClient.user.findUnique({
                 where: { email },
                 include: {
                     accounts: {
@@ -64,7 +66,7 @@ export class AuthController {
             if (!user) {
                 // Create new user
                 newUser = true;
-                user = await prisma.user.create({
+                user = await prismaClient.user.create({
                     data: {
                         email,
                         name: name || email.split('@')[0],
@@ -85,7 +87,7 @@ export class AuthController {
                 });
             } else if (!user.accounts.length) {
                 // Link Google account to existing user
-                await prisma.account.create({
+                await prismaClient.account.create({
                     data: {
                         userId: user.id,
                         type: 'oauth',
@@ -202,7 +204,7 @@ export class AuthController {
                 return res.status(400).json({ error: 'Email is required' });
             }
 
-            const user = await prisma.user.findUnique({
+            const user = await prismaClient.user.findUnique({
                 where: { email },
                 select: { id: true }
             });
@@ -222,7 +224,7 @@ export class AuthController {
             const { email, password, name } = req.body as SignUpInput
 
             // Check if user already exists
-            const existingUser = await prisma.user.findUnique({
+            const existingUser = await prismaClient.user.findUnique({
                 where: { email },
             })
 
@@ -234,7 +236,7 @@ export class AuthController {
             const hashedPassword = await bcrypt.hash(password, 10)
 
             // Create user
-            const user = await prisma.user.create({
+            const user = await prismaClient.user.create({
                 data: {
                     email,
                     name,
@@ -281,7 +283,7 @@ export class AuthController {
             const { email, password } = req.body as SignInInput
 
             // Find user
-            const user = await prisma.user.findUnique({
+            const user = await prismaClient.user.findUnique({
                 where: { email },
                 include: {
                     accounts: {
@@ -347,7 +349,7 @@ export class AuthController {
         try {
             const userId = req.user.id
 
-            const user = await prisma.user.findUnique({
+            const user = await prismaClient.user.findUnique({
                 where: { id: userId },
                 select: {
                     id: true,
@@ -364,6 +366,140 @@ export class AuthController {
             return res.status(200).json(user)
         } catch (error) {
             return res.status(500).json({ error: 'Internal server error' })
+        }
+    }
+
+    // Generate and send OTP
+    static async generateOTP(req: Request, res: Response) {
+        try {
+            const { email } = req.body;
+            if (!email) {
+                return res.status(400).json({ error: 'Email is required' });
+            }
+
+            // Generate a 6-digit OTP
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+            // Get Prisma instance
+            const prisma = await PrismaService.getInstance();
+
+            // Store OTP in the database
+            await prisma.oTP.create({
+                data: {
+                    email,
+                    code,
+                    expiresAt,
+                },
+            });
+
+            // Send OTP via email
+            await EmailController.sendEmail(req, res);
+
+            return res.status(200).json({ message: 'OTP sent successfully' });
+        } catch (error) {
+            console.error('Generate OTP error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    // Verify OTP and log in or sign up
+    static async verifyOTP(req: Request, res: Response) {
+        try {
+            const { email, code } = req.body;
+            if (!email || !code) {
+                return res.status(400).json({ error: 'Email and OTP code are required' });
+            }
+
+            // Get Prisma instance
+            const prisma = await PrismaService.getInstance();
+
+            // Find the OTP record
+            const otpRecord = await prisma.oTP.findFirst({
+                where: {
+                    email,
+                    code,
+                    expiresAt: { gt: new Date() },
+                },
+            });
+
+            if (!otpRecord) {
+                return res.status(400).json({ error: 'Invalid or expired OTP' });
+            }
+
+            // Check if user exists
+            let user = await prisma.user.findUnique({
+                where: { email },
+                include: {
+                    ownedCompanies: true,
+                    companyMemberships: true,
+                },
+            });
+
+            let newUser = false;
+            if (!user) {
+                newUser = true;
+                await prisma.user.create({
+                    data: {
+                        email,
+                        name: email.split('@')[0],
+                        accounts: {
+                            create: {
+                                type: 'credentials',
+                                provider: 'credentials',
+                                providerAccountId: email,
+                                access_token: jwt.sign({ email }, process.env.JWT_SECRET || 'secret-key'),
+                            },
+                        },
+                    },
+                });
+
+            }
+
+            if (!user) {
+                return res.status(500).json({ error: 'User creation failed' });
+            }
+
+            // Delete the used OTP
+            await prisma.oTP.delete({ where: { id: otpRecord.id } });
+
+            // Determine user role
+            let role = user.ownedCompanies.length ? 'admin' : user.companyMemberships.length ? user.companyMemberships[0].role : 'member';
+
+            if (newUser) {
+                role = 'admin';
+            }
+
+            // Generate JWT token
+            const token = jwt.sign(
+                { id: user.id, email: user.email, role, name: user.name, image: user.image },
+                process.env.JWT_SECRET || 'your-secret-key',
+                { expiresIn: '7d' }
+            );
+
+            res.cookie('token', token);
+            res.cookie('user', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                role,
+            }));
+
+            return res.status(200).json({
+                token,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    image: user.image,
+                    role,
+                },
+                newUser,
+            });
+        } catch (error) {
+            console.error('Verify OTP error:', error);
+            return res.status(500).json({ error: 'Internal server error' });
         }
     }
 }
